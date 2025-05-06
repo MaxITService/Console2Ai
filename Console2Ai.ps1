@@ -1,10 +1,30 @@
-#region Console2Ai - PowerShell Console Assistant with AI Integration
+#region Header and Configuration
 # Script: Console2Ai.ps1
-# Version: 2.1 (Production Ready - Profile Integration)
+# Version: 2.2 (Production Ready - Profile Integration with Conversation Mode)
 # Author: [Your Name/Handle Here]
 # Description: Provides functions to capture console history and send it to an AI
-#              for assistance, or save it to a log. Includes an Alt+C hotkey
-#              for quick AI interaction via PSReadLine.
+#              for assistance (command or conversation mode), or save it to a log.
+#              Includes Alt+C hotkey for quick AI command suggestions and
+#              Alt+S hotkey for conversational AI interaction.
+
+# --- User Configuration ---
+# Place these at the top for easy editing.
+
+# Executable for the AI chat tool
+$Global:Console2Ai_AIChatExecutable = "aichat.exe" # Used by both modes unless overridden below
+
+# Configuration for Alt+C (Command Mode)
+$Global:Console2Ai_CommandMode_AIChatExecutable = $Global:Console2Ai_AIChatExecutable # Or specify a different one
+$Global:Console2Ai_CommandMode_AIPromptInstruction = "Please analyze the following console history (last {0} lines). The user's specific request is: '{1}'. Identify any issues or the user's likely goal based on both history and request, and suggest a single, concise PowerShell command to help. If the user request is a direct command instruction, fulfill it using the history as context. Console History:"
+
+# Configuration for Alt+S (Conversation Mode)
+$Global:Console2Ai_ConversationMode_AIChatExecutable = $Global:Console2Ai_AIChatExecutable # Or specify a different one
+$Global:Console2Ai_ConversationMode_AIPromptInstruction = "You are in a conversational chat. Please analyze the following console history (last {0} lines) as context. The user's current query is: '{1}'. Respond to the user's query, using the console history for context if relevant. Avoid suggesting a command unless explicitly asked or it's the most natural answer. Focus on explanation and direct answers. Console History:"
+
+# Default number of lines to capture for hotkeys if not specified in the prompt
+$Global:Console2Ai_DefaultLinesToCaptureForHotkey = 15
+
+#endregion Header and Configuration
 
 # --- Helper Function: Get-ConsoleTextAbovePrompt ---
 # Captures text from the console buffer above the current prompt.
@@ -73,11 +93,11 @@ function Get-ConsoleTextAbovePrompt {
         for ($col = 0; $col -lt $bufferCells.GetLength(1); $col++) {
             [void]$capturedTextBuilder.Append($bufferCells[$row, $col].Character)
         }
-        if ($row -lt ($bufferCells.GetLength(0) - 1)) {
+        if ($row -lt ($bufferCells.GetLength(0) - 1)) { # Avoid adding an extra newline at the very end
             [void]$capturedTextBuilder.Append([Environment]::NewLine)
         }
     }
-    return $capturedTextBuilder.ToString()
+    return $capturedTextBuilder.ToString().TrimEnd() # Trim trailing newlines/whitespace from the final string
 }
 
 
@@ -111,7 +131,8 @@ function Get-ConsoleTextAbovePrompt {
   # This will capture the last 15 lines and send them to the AI.
 .NOTES
   Ensure the AI chat executable is in your PATH or provide a full path.
-  This function is part of the Console2Ai script.
+  This function is part of the Console2Ai script. It's intended for programmatic use,
+  while Alt+C/Alt+S hotkeys are for interactive use.
 #>
 function Invoke-AIConsoleHelp {
     [CmdletBinding()]
@@ -123,7 +144,7 @@ function Invoke-AIConsoleHelp {
         [string]$UserPrompt = "User did not provide a specific prompt, analyze history.",
 
         [Parameter(Mandatory=$false)]
-        [string]$AIChatExecutable = "aichat.exe", # Default AI executable
+        [string]$AIChatExecutable = "aichat.exe", # Default AI executable for this function
 
         [Parameter(Mandatory=$false)]
         [string]$AIPromptInstruction = "Please analyze the following console history (last {0} lines). The user's specific request is: '{1}'. Identify any issues or the user's likely goal based on both history and request, and suggest a single, concise PowerShell command to help. If the user request is a direct command instruction, fulfill it using the history as context. Console History:"
@@ -146,7 +167,7 @@ function Invoke-AIConsoleHelp {
     Write-Host "Invoke-AIConsoleHelp: Sending the last $LinesToCapture lines (and user prompt) to AI ($AIChatExecutable)..."
 
     try {
-        # Execute the AI chat executable. Assumes it takes prompt with -e
+        # Execute the AI chat executable. Assumes it takes prompt with -e for this function's purpose
         & $AIChatExecutable -e $fullAIPrompt
     } catch {
         Write-Error "Invoke-AIConsoleHelp: Failed to execute AI chat executable '$AIChatExecutable'."
@@ -190,9 +211,15 @@ function Save-ConsoleHistoryLog {
      Write-Verbose "Save-ConsoleHistoryLog: Attempting to capture $LinesToCapture lines to save to log file '$LogFilePath'."
     $consoleHistory = Get-ConsoleTextAbovePrompt -LinesToCapture $LinesToCapture -ErrorAction SilentlyContinue
 
-    if ($null -eq $consoleHistory) {
+    if ($null -eq $consoleHistory) { # Check for null explicitly
         $consoleHistory = "" # Ensure it's a string for Set-Content
+    } elseif ([string]::IsNullOrWhiteSpace($consoleHistory) -and $consoleHistory.Length -gt 0) { # It's not null, but it is whitespace
+        Write-Warning "Save-ConsoleHistoryLog: Captured console history is whitespace only."
+    } elseif ($consoleHistory.Length -eq 0) { # It's an empty string (not null, not just whitespace)
+         Write-Warning "Save-ConsoleHistoryLog: Captured console history is empty."
     }
+
+
     try {
         Set-Content -Path $LogFilePath -Value $consoleHistory -Encoding UTF8 -Force
         Write-Host "Save-ConsoleHistoryLog: Last $LinesToCapture console lines (or available history) saved to '$LogFilePath'."
@@ -204,77 +231,133 @@ function Save-ConsoleHistoryLog {
 }
 
 
-# --- PSReadLine Hotkey Binding for AI Help (Alt+C) ---
-# This section attempts to set up the Alt+C hotkey.
+# --- PSReadLine Hotkey Bindings ---
+# This section attempts to set up the hotkeys.
 # It should be placed in your PowerShell profile after PSReadLine is imported.
 # Example: Import-Module PSReadLine; . C:\path\to\Console2Ai.ps1
 try {
     # Ensure UTF-8 output in this session for AI interaction
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-    # Configuration for the hotkey (can be customized by user if they edit the script)
-    $Console2Ai_Hotkey_AIChatExecutable = "aichat.exe"
-    $Console2Ai_Hotkey_AIPromptInstruction = "Please analyze the following console history (last {0} lines). The user's specific request is: '{1}'. Identify any issues or the user's likely goal based on both history and request, and suggest a single, concise PowerShell command to help. If the user request is a direct command instruction, fulfill it using the history as context. Console History:"
-
+    # --- Alt+C: AI Command Suggestion Hotkey ---
     Set-PSReadLineKeyHandler -Chord "alt+c" -ScriptBlock {
         param($key, $arg) # Standard parameters for PSReadLine script blocks
 
         $currentLine = $null
         [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$currentLine, [ref]$null)
 
-        $linesToCapture = 15 # Default line count
-        $userPromptForAI = $currentLine # Default prompt is the whole line
+        $linesToCapture = $Global:Console2Ai_DefaultLinesToCaptureForHotkey 
+        $userPromptForAI = $currentLine 
         
-        # Try to parse line count override (e.g., "30 get help with this error")
         if ($null -ne $currentLine -and $currentLine -match '^(\d{1,4})\s+(.*)') {
             $numStr = $matches[1]
             if ([int]::TryParse($numStr, [ref]$null) -and ([int]$numStr -gt 0) -and ([int]$numStr -lt 2000) ) {
                  $linesToCapture = [int]$numStr
                  $userPromptForAI = $matches[2]
-                 Write-Verbose "Console2Ai Hotkey: Detected line count override: $linesToCapture"
+                 Write-Verbose "Console2Ai Hotkey (Alt+C): Detected line count override: $linesToCapture"
             } else {
-                 Write-Verbose "Console2Ai Hotkey: Detected number '$numStr' but it's invalid (not 1-1999). Using default 15 lines."
+                 Write-Verbose "Console2Ai Hotkey (Alt+C): Detected number '$numStr' but it's invalid (not 1-1999). Using default $linesToCapture lines."
             }
-        } elseif ($null -ne $currentLine -and $currentLine -match '^\d{1,4}$') {
+        } elseif ($null -ne $currentLine -and $currentLine -match '^\d{1,4}$') { 
              $numStr = $currentLine
              if ([int]::TryParse($numStr, [ref]$null) -and ([int]$numStr -gt 0) -and ([int]$numStr -lt 2000) ) {
                  $linesToCapture = [int]$numStr
-                 $userPromptForAI = "User provided only line count, analyze history."
-                 Write-Verbose "Console2Ai Hotkey: Detected line count override: $linesToCapture (no specific prompt text)"
+                 $userPromptForAI = "User provided only line count, analyze history for a command." 
+                 Write-Verbose "Console2Ai Hotkey (Alt+C): Detected line count override: $linesToCapture (no specific prompt text)"
              }
+        } elseif ([string]::IsNullOrWhiteSpace($currentLine)) {
+            $userPromptForAI = "User did not provide a specific prompt, analyze history for a command."
         }
 
-        # Capture console history
         $consoleHistory = Get-ConsoleTextAbovePrompt -LinesToCapture $linesToCapture -ErrorAction SilentlyContinue
         if ([string]::IsNullOrWhiteSpace($consoleHistory)) {
-             Write-Warning "Console2Ai Hotkey: No console history was captured. AI might lack context."
+             Write-Warning "Console2Ai Hotkey (Alt+C): No console history was captured. AI might lack context."
         }
 
-        # Provide feedback in the prompt line
         [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-        $statusMessage = "⌛ Console2Ai: Capturing $linesToCapture lines. Asking AI about: '$userPromptForAI'..."
+        $statusMessage = "⌛ Console2Ai (Cmd): Capturing $linesToCapture lines. Asking AI about: '$userPromptForAI'..."
         [Microsoft.PowerShell.PSConsoleReadLine]::Insert($statusMessage)
 
-        # Formulate the full prompt for the AI
-        $formattedInstruction = $Console2Ai_Hotkey_AIPromptInstruction -f $linesToCapture, $userPromptForAI
+        $formattedInstruction = $Global:Console2Ai_CommandMode_AIPromptInstruction -f $linesToCapture, $userPromptForAI
         $fullAIPrompt = "$formattedInstruction$([Environment]::NewLine)$([Environment]::NewLine)$consoleHistory"
-        Write-Verbose "Console2Ai Hotkey: Full prompt for AI: `n$fullAIPrompt"
+        Write-Verbose "Console2Ai Hotkey (Alt+C): Full prompt for AI: `n$fullAIPrompt"
 
-        # Call AI and replace prompt line
         try {
-             $_new = (& $Console2Ai_Hotkey_AIChatExecutable -e $fullAIPrompt)
+             $_new = (& $Global:Console2Ai_CommandMode_AIChatExecutable -e $fullAIPrompt)
              [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
              [Microsoft.PowerShell.PSConsoleReadLine]::Insert($_new)
         } catch {
              [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-             $errorMessage = "❌ Console2Ai AI Error: $($_.Exception.Message). Check '$Console2Ai_Hotkey_AIChatExecutable' path/config."
+             $errorMessage = "❌ Console2Ai (Cmd) AI Error: $($_.Exception.Message). Check '$($Global:Console2Ai_CommandMode_AIChatExecutable)' path/config."
              [Microsoft.PowerShell.PSConsoleReadLine]::Insert($errorMessage)
         }
     }
-    # Optional: A silent confirmation that the hotkey was set, good for profile loading.
-    # Write-Verbose "Console2Ai: Alt+C hotkey registered successfully."
+
+    # --- Alt+S: AI Conversation Mode Hotkey ---
+    Set-PSReadLineKeyHandler -Chord "alt+s" -ScriptBlock {
+        param($key, $arg) 
+
+        $currentLine = $null
+        [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$currentLine, [ref]$null)
+
+        $linesToCapture = $Global:Console2Ai_DefaultLinesToCaptureForHotkey
+        $userPromptForAI = $currentLine
+        
+        if ($null -ne $currentLine -and $currentLine -match '^(\d{1,4})\s+(.*)') {
+            $numStr = $matches[1]
+            if ([int]::TryParse($numStr, [ref]$null) -and ([int]$numStr -gt 0) -and ([int]$numStr -lt 2000) ) {
+                 $linesToCapture = [int]$numStr
+                 $userPromptForAI = $matches[2]
+                 Write-Verbose "Console2Ai Hotkey (Alt+S): Detected line count override: $linesToCapture"
+            } else {
+                 Write-Verbose "Console2Ai Hotkey (Alt+S): Detected number '$numStr' but it's invalid (not 1-1999). Using default $linesToCapture lines."
+            }
+        } elseif ($null -ne $currentLine -and $currentLine -match '^\d{1,4}$') { 
+             $numStr = $currentLine
+             if ([int]::TryParse($numStr, [ref]$null) -and ([int]$numStr -gt 0) -and ([int]$numStr -lt 2000) ) {
+                 $linesToCapture = [int]$numStr
+                 $userPromptForAI = "User provided only line count, analyze history and respond."
+                 Write-Verbose "Console2Ai Hotkey (Alt+S): Detected line count override: $linesToCapture (no specific prompt text)"
+             }
+        } elseif ([string]::IsNullOrWhiteSpace($currentLine)) {
+            $userPromptForAI = "User did not provide a specific prompt, analyze history and respond."
+        }
+
+        $consoleHistory = Get-ConsoleTextAbovePrompt -LinesToCapture $linesToCapture -ErrorAction SilentlyContinue
+        if ([string]::IsNullOrWhiteSpace($consoleHistory)) {
+             Write-Warning "Console2Ai Hotkey (Alt+S): No console history was captured. AI might lack context."
+        }
+
+        $formattedInstruction = $Global:Console2Ai_ConversationMode_AIPromptInstruction -f $linesToCapture, $userPromptForAI
+        $fullAIPromptForConversation = "$formattedInstruction$([Environment]::NewLine)$([Environment]::NewLine)$consoleHistory"
+        Write-Verbose "Console2Ai Hotkey (Alt+S): Full prompt for AI: `n$fullAIPromptForConversation"
+
+        [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
+        
+        Write-Host "" 
+        Write-Host "🗣️  Console2Ai (Conversation with AI)" -ForegroundColor Cyan
+        Write-Host "   Your query: '$userPromptForAI'"
+        Write-Host "   Context: Last $linesToCapture lines of console history are being sent."
+        Write-Host "--- AI Response (from $($Global:Console2Ai_ConversationMode_AIChatExecutable)) ---" -ForegroundColor Green
+        
+        try {
+            # Pass the entire constructed prompt as a single argument.
+            # PowerShell will handle quoting if $fullAIPromptForConversation contains spaces.
+            & $Global:Console2Ai_ConversationMode_AIChatExecutable $fullAIPromptForConversation
+            
+            Write-Host "--- End of AI Response ---" -ForegroundColor Green
+            Write-Host "" 
+        } catch {
+            Write-Error "Console2Ai Hotkey (Alt+S): Failed to execute AI chat executable '$($Global:Console2Ai_ConversationMode_AIChatExecutable)'."
+            Write-Error $_.Exception.Message
+            Write-Host "--- AI Execution Failed ---" -ForegroundColor Red
+        }
+    }
+
+    Write-Verbose "Console2Ai: Alt+C (Command Mode) and Alt+S (Conversation Mode) hotkeys registered."
+
 } catch {
-    Write-Warning "Console2Ai: Failed to set PSReadLine key handler for Alt+C. PSReadLine might not be available or an error occurred: $($_.Exception.Message)"
+    Write-Warning "Console2Ai: Failed to set PSReadLine key handlers. PSReadLine might not be available or an error occurred: $($_.Exception.Message)"
 }
 
-#endregion Console2Ai - PowerShell Console Assistant with AI Integration
+#endregion PSReadLine Hotkey Bindings
