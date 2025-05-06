@@ -7,7 +7,7 @@ Console2Ai is a PowerShell script that captures your console buffer content and 
 
 ## Core Functionality
 
-* **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output.
+* **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N line, you specify, 15 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output.
 * **Alt+C Hotkey:** Quick access to AI assistance with a simple keyboard shortcut.
 * **Context Control:** Specify how many lines of console history (1-1999) to include in the AI prompt.
 * **Session Logging:** Save your recent console lines to a text file for reference.
@@ -90,9 +90,8 @@ Follow these steps to get Console2Ai up and running:
 
 3. Copy and paste the following snippet into your profile (adjust the path as needed):
 
-   # Import-Module PSReadLine -ErrorAction SilentlyContinue  # Uncomment if needed
-
-    . C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai.ps1  # Adjust path if needed
+       # Import-Module PSReadLine -ErrorAction SilentlyContinue  # Uncomment if needed
+       . C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai.ps1  # Adjust path if needed
 
 4. Save the profile and **restart PowerShell**.
 
@@ -179,6 +178,4 @@ You can modify Console2Ai.ps1 directly to change:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details (you should add one!).
-
-Happy Hacking and may your console always be helpful! 🎉
+Do whatever you want just mention me
