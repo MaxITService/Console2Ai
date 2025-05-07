@@ -8,7 +8,8 @@ Console2Ai is a PowerShell script that captures your console buffer content and 
 ## Core Functionality
 
 * **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N line, you specify, 15 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output.
-* **Alt+C Hotkey:** Quick access to AI assistance with a simple keyboard shortcut.
+* **Alt+C Hotkey:** Quick access to AI command suggestion with a simple keyboard shortcut. (What you typed as prompt will be REPLACED with ready to press enter command)
+* **Alt+S Hotkey:** Instantly start a conversational AI session with your console history and current query.
 * **Context Control:** Specify how many lines of console history (1-1999) to include in the AI prompt.
 * **Session Logging:** Save your recent console lines to a text file for reference.
 
@@ -99,9 +100,9 @@ Follow these steps to get Console2Ai up and running:
 
 Once installed, you have a few ways to interact with Console2Ai:
 
-### 1. The `Alt+C` Hotkey (Primary Method) 🔥
+### 1. The `Alt+C` Hotkey (Command Suggestion) 🔥
 
-This is the quickest way to get AI assistance!
+This is the quickest way to get AI assistance for command suggestions!
 
    a.  **Standard Query:**
        Type your question, command fragment, or error message into the PowerShell prompt.
@@ -120,35 +121,64 @@ This is the quickest way to get AI assistance!
        Console2Ai will capture the last 50 lines of history along with your query.
        *   If you only type a number (e.g., `30`) and press `Alt+C`, it will use that many lines of history and a generic prompt for the AI.
 
-### 2. Using the PowerShell Functions ⚙️
+### 2. The `Alt+S` Hotkey (Conversational Chat) 💬
+
+Start a conversational AI session with your console history as context and your current query. Unlike Alt+C, Alt+S is focused on back-and-forth conversation, not just command suggestions.
+
+* **How it works:**
+
+    * Type your question or message into the PowerShell prompt.
+    * Press `Alt+S`.
+    * Console2Ai will capture the last 15 lines of console history (by default) plus your typed query, then open a conversational AI session using `aichat`.
+    * The AI will reply conversationally, focusing on explanations, troubleshooting, or general answers (not just commands).
+
+**Example:**
+
+    PS C:\> Why is my script running slowly? # Press Alt+S
+
+* This will start a chat session with the AI, including recent console history as context.
+* You can also specify how many lines of history to include:
+
+    PS C:\> 40 What are some ways to optimize this script? # Press Alt+S
+
+* Under the hood, Alt+S calls the `Invoke-Console2AiConversation` function.
+
+### 3. Using the PowerShell Functions ⚙️
 
 Console2Ai also provides standard PowerShell functions if you prefer:
 
    a.  **`Invoke-AIConsoleHelp`**
+
        Manually trigger AI assistance.
-       ```powershell
-       # Get help based on the last 15 lines of console history
-       Invoke-AIConsoleHelp
 
-       # Get help with more context and a specific prompt
-       Invoke-AIConsoleHelp -LinesToCapture 25 -UserPrompt "What does this error mean and how to fix it?"
-       ```
+           # Get help based on the last 15 lines of console history
+           Invoke-AIConsoleHelp
 
-   b.  **`Save-ConsoleHistoryLog`** 💾
+           # Get help with more context and a specific prompt
+           Invoke-AIConsoleHelp -LinesToCapture 25 -UserPrompt "What does this error mean and how to fix it?"
+
+   b.  **`Invoke-Console2AiConversation`**
+
+       Manually start a conversational AI session (same as Alt+S):
+
+           Invoke-Console2AiConversation -UserQuery "Explain this error" -LinesToCapture 20
+
+   c.  **`Save-ConsoleHistoryLog`** 💾
+
        Save recent console output to a file.
-       ```powershell
-       # Save the last 15 lines to .\log.txt
-       Save-ConsoleHistoryLog
 
-       # Save the last 30 lines to a custom file
-       Save-ConsoleHistoryLog -LinesToCapture 30 -LogFilePath "C:\temp\session_details.txt"
-       ```
+           # Save the last 15 lines to .\log.txt
+           Save-ConsoleHistoryLog
 
-### 3. Getting Help Within PowerShell ❓
+           # Save the last 30 lines to a custom file
+           Save-ConsoleHistoryLog -LinesToCapture 30 -LogFilePath "C:\temp\session_details.txt"
+
+### 4. Getting Help Within PowerShell ❓
 
 You can use PowerShell's built-in help system:
 
     Get-Help Invoke-AIConsoleHelp -Full
+    Get-Help Invoke-Console2AiConversation -Full
     Get-Help Save-ConsoleHistoryLog -Full
 
 ## 🔧 Customization (Optional)
