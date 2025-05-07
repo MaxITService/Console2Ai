@@ -22,7 +22,7 @@ Before you begin, ensure you have the following:
 1. **PowerShell:** Version 5.1 or higher. PowerShell 7+ is recommended for the best `PSReadLine` experience.
 2. **`aichat` by sigoden:** This is the AI chat client Console2Ai uses.
    * **Installation:** Visit the [`aichat` GitHub releases page](https://github.com/sigoden/aichat/releases) and download the appropriate binary for your operating system (e.g., `aichat-*-windows-x86_64.exe`).
-   * **Link:** [https://github.com/sigoden/aichat?tab=readme-ov-file](https://github.com/sigoden/aichat?tab=readme-ov-file)
+   * **Link:** [https://github.com/sigoden/aichat?tab=readme-ov-file](https://github.com/sigoden/aichat)
 
 ## 🛠️ Installation & Configuration
 
@@ -66,8 +66,8 @@ Follow these steps to get Console2Ai up and running:
    c.  **Configure `aichat` Model & API Key:**
        `aichat` needs to know which AI model to use and requires an API key for that service (e.g., OpenAI, OpenRouter, Ollama, Gemini, etc.).
        *Follow the detailed configuration instructions on the [aichat configuration example](https://github.com/sigoden/aichat/blob/main/config.example.yaml).
-       * Create/edit a `config.yaml` file. For Windows, this file is located at: `C:\Users\Username\AppData\Roaming\aichat\config.yaml` (replace Username with your Windows username).
-       *   You can quickly open this folder by typing `explorer %APPDATA%\aichat` in PowerShell.
+       * Create/edit a `config.yaml` file. For Windows, this file is located at: `C:\Users\Username\AppData\Roaming\aichat\config.yaml`
+       *   You can quickly open this folder by typing `explorer %APPDATA%\aichat` in PowerShell. You don't need to have everything, here is my config that works:
 
        *   **Example configuration for OpenRouter with Claude:**
 
