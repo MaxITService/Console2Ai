@@ -39,7 +39,7 @@ Follow these steps to get Console2Ai up and running:
         -   Rename the downloaded `aichat` executable to `aichat.exe` and move it to this folder.
         -   Add this folder to your PATH. You can do this via PowerShell:
 
-# For User PATH (recommended, no admin rights needed):
+**For User PATH :**
 
 ```powershell
 $CurrentUserPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
@@ -50,8 +50,12 @@ if (-not ($CurrentUserPath -split ';' -contains $AichatPath)) {
 } else {
     Write-Host "'$AichatPath' is already in User PATH."
 }
+```
 
-# For System PATH (requires Admin, affects all users):
+**For System PATH (requires Admin, affects all users):**
+
+
+
 ```powershell
 $SystemPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
 $AichatPath = "C:\Tools\bin" # Change this to your actual folder
@@ -65,7 +69,7 @@ if (-not ($SystemPath -split ';' -contains $AichatPath)) {
 
 **Verify:** Open a *new* PowerShell terminal and type `aichat --version`. You should see the version information.
 
-    c.  **Configure `aichat` Model & API Key:**
+**c. Configure `aichat` Model & API Key:**
         `aichat` needs to know which AI model to use and requires an API key for that service (e.g., OpenAI, OpenRouter, Ollama, Gemini, etc.).
         Follow the detailed configuration instructions on the [aichat configuration example](https://github.com/sigoden/aichat/blob/main/config.example.yaml).
         Create or edit a `config.yaml` file. For Windows, this file is located at: `C:\Users\Username\AppData\Roaming\aichat\config.yaml` (replace `Username` with your Windows username).
@@ -112,25 +116,27 @@ Once installed, you have a few ways to interact with Console2Ai:
 
     a.  **Standard Query:**
         Type your question, command fragment, or error message into the PowerShell prompt.
+
         ```powershell
         PS C:\> Get-ChildItem -Path C:\NonExistentFolder -Recurse # You see an error after this
         PS C:\> How do I handle 'cannot find path' errors in Get-ChildItem? # Now press Alt+C
-        ```
-        Console2Ai will capture the last 15 lines of console history (by default) plus your typed query ("How do I handle..."). It will then show a status message like:
-        ```text
+        Console2Ai will capture the last 15 lines of console history (by default) plus your typed query ("How do I handle..."). It will then show a status message like:        
         ⌛ Console2Ai (Cmd): Asking AI about 'How do I handle 'cannot find path' errors in Get-ChildItem?' (context: 15 lines)...
         ```
-        It will send this to `aichat`, and replace your query with the AI's suggested command or explanation.
+
+
+    It will send this to `aichat`, and replace your query with the AI's suggested command or explanation.
 
     b.  **Specify Line Count for History:** ✨
         If you want to provide more or less context from your console history:
         -   Start your typed line with a number (1-1999) followed by a space, then your query.
-            ```powershell
-            PS C:\> # ... lots of previous output ...
+
+            
+             ... lots of previous output ...
             PS C:\> 50 explain the last few commands and suggest an optimization # Press Alt+C
-            ```
-            Console2Ai will capture the last 50 lines of history along with your query.
-        -   If you only type a number (e.g., `30`) and press `Alt+C`, it will use that many lines of history and a generic prompt for the AI.
+            
+    Console2Ai will capture the last 50 lines of history along with your query.
+    If you only type a number (e.g., `30`) and press `Alt+C`, it will use that many lines of history and a generic prompt for the AI.
 
 2.  **The `Alt+S` Hotkey (Conversational Chat)** 💬
     Start a conversational AI session with your console history as context and your current query. Unlike Alt+C, Alt+S is focused on back-and-forth conversation, not just command suggestions.
@@ -157,37 +163,38 @@ Once installed, you have a few ways to interact with Console2Ai:
 
     a.  **`Invoke-AIConsoleHelp`**
         Manually trigger AI assistance.
-        ```powershell
+
+        
         # Get help based on the last 15 lines of console history
         Invoke-AIConsoleHelp
 
         # Get help with more context and a specific prompt
         Invoke-AIConsoleHelp -LinesToCapture 25 -UserPrompt "What does this error mean and how to fix it?"
-        ```
+        
 
     b.  **`Invoke-Console2AiConversation`**
         Manually start a conversational AI session (same as Alt+S):
-        ```powershell
+        
         Invoke-Console2AiConversation -UserQuery "Explain this error" -LinesToCapture 20
-        ```
+        
 
     c.  **`Save-ConsoleHistoryLog`** 💾
         Save recent console output to a file.
-        ```powershell
+        
         # Save the last 15 lines to .\log.txt
         Save-ConsoleHistoryLog
 
         # Save the last 30 lines to a custom file
         Save-ConsoleHistoryLog -LinesToCapture 30 -LogFilePath "C:\temp\session_details.txt"
-        ```
+        
 
 4.  **Getting Help Within PowerShell** ❓
     You can use PowerShell's built-in help system:
-    ```powershell
-    Get-Help Invoke-AIConsoleHelp -Full
-    Get-Help Invoke-Console2AiConversation -Full
-    Get-Help Save-ConsoleHistoryLog -Full
-    ```
+    
+        Get-Help Invoke-AIConsoleHelp -Full
+        Get-Help Invoke-Console2AiConversation -Full
+        Get-Help Save-ConsoleHistoryLog -Full
+    
 
 ## 🔧 Customization (Optional)
 
