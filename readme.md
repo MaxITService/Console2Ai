@@ -41,6 +41,7 @@ Follow these steps to get Console2Ai up and running:
         -   Add this folder to your PATH. You can do this via PowerShell:
 
         **For User PATH (recommended, no admin rights needed):**
+
         ```powershell
         $CurrentUserPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
         $AichatPath = "C:\Tools\bin" # Change this to your actual folder
@@ -53,6 +54,7 @@ Follow these steps to get Console2Ai up and running:
         ```
 
         **For System PATH (requires Admin, affects all users):**
+        
         ```powershell
         $SystemPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
         $AichatPath = "C:\Tools\bin" # Change this to your actual folder
