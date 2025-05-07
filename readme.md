@@ -14,6 +14,7 @@ Console2Ai is a PowerShell script that captures your console buffer content and 
 * **Session Logging:** Save your recent console lines to a text file for reference.
 
 When you press Alt+C, the script analyzes your current input line, captures the specified number of console history lines, and sends everything to `aichat`. The AI response then replaces your current input line in the console.
+Aichat is free and opn source application.
 
 ## 📋 Prerequisites
 
@@ -22,7 +23,7 @@ Before you begin, ensure you have the following:
 1. **PowerShell:** Version 5.1 or higher. PowerShell 7+ is recommended for the best `PSReadLine` experience.
 2. **`aichat` by sigoden:** This is the AI chat client Console2Ai uses.
    * **Installation:** Visit the [`aichat` GitHub releases page](https://github.com/sigoden/aichat/releases) and download the appropriate binary for your operating system (e.g., `aichat-*-windows-x86_64.exe`).
-   * **Link:** [https://github.com/sigoden/aichat?tab=readme-ov-file](https://github.com/sigoden/aichat)
+   * **Link to repo if you need help:** [https://github.com/sigoden/aichat](https://github.com/sigoden/aichat)
 
 ## 🛠️ Installation & Configuration
 
