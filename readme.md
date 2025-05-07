@@ -35,7 +35,6 @@ Follow these steps to get Console2Ai up and running:
 
     b.  **Add `aichat` to your PATH:**
         For Console2Ai to find `aichat.exe`, it needs to be in your system's PATH.
-
         -   Create a dedicated folder for CLI tools, e.g., `C:\Tools\bin`
         -   Rename the downloaded `aichat` executable to `aichat.exe` and move it to this folder.
         -   Add this folder to your PATH. You can do this via PowerShell:
@@ -54,7 +53,7 @@ Follow these steps to get Console2Ai up and running:
         ```
 
         **For System PATH (requires Admin, affects all users):**
-        
+
         ```powershell
         $SystemPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
         $AichatPath = "C:\Tools\bin" # Change this to your actual folder
