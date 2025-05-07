@@ -161,9 +161,13 @@ function Save-ConsoleHistoryLog {
   and then launches the AI executable, piping the prompt to its standard input.
   The AI executable is expected to take over the console for an interactive session.
 .PARAMETER UserQuery
-  The query typed by the user.
+  The query typed by the user. Can also be specified as -UQ.
+.PARAMETER UQ
+  Alias for -UserQuery. The query typed by the user.
 .PARAMETER LinesToCapture
-  The number of console history lines to include as context.
+  The number of console history lines to include as context. Can also be specified as -LTQ.
+.PARAMETER LTQ
+  Alias for -LinesToCapture. The number of console history lines to include as context.
 .NOTES
   This function is not typically called directly by the user, but via the Alt+S hotkey.
   It handles the setup and execution of the conversational AI tool.
@@ -172,9 +176,11 @@ function Invoke-Console2AiConversation {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
+        [Alias('UQ')]
         [string]$UserQuery,
 
         [Parameter(Mandatory=$true)]
+        [Alias('LTQ')]
         [int]$LinesToCapture
     )
 
@@ -280,7 +286,7 @@ try {
         if ([string]::IsNullOrWhiteSpace($userPromptForAI)) { $userPromptForAI = "User's query is empty. Please analyze history and provide general assistance." }
         
         $escapedUserQuery = $userPromptForAI.Replace("'", "''") # Escape for command string
-        $commandToExecute = "Invoke-Console2AiConversation -UserQuery '$escapedUserQuery' -LinesToCapture $linesToCapture"
+        $commandToExecute = "Invoke-Console2AiConversation -UQ '$escapedUserQuery' -LTQ $linesToCapture"
         
         Write-Verbose "Console2Ai Hotkey (Alt+S): Inserting command: $commandToExecute"
 
