@@ -40,31 +40,32 @@ Follow these steps to get Console2Ai up and running:
       * Rename the downloaded `aichat` executable to `aichat.exe` and move it to this folder.
       * Add this folder to your PATH. You can do this via PowerShell:
 
-       For User PATH (recommended, no admin rights needed):
+       **For User PATH (recommended, no admin rights needed):**
 
-           $CurrentUserPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
-           $AichatPath = "C:\Tools\bin" # Change this to your actual folder
-           if (-not ($CurrentUserPath -split ';' -contains $AichatPath)) {
-               [System.Environment]::SetEnvironmentVariable("Path", "$CurrentUserPath;$AichatPath", "User")
-               Write-Host "Added '$AichatPath' to User PATH. Please restart PowerShell."
-           } else {
-               Write-Host "'$AichatPath' is already in User PATH."
-           }
+    $CurrentUserPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $AichatPath = "C:\Tools\bin" # Change this to your actual folder
+    if (-not ($CurrentUserPath -split ';' -contains $AichatPath)) {
+        [System.Environment]::SetEnvironmentVariable("Path", "$CurrentUserPath;$AichatPath", "User")
+        Write-Host "Added '$AichatPath' to User PATH. Please restart PowerShell."
+    } else {
+        Write-Host "'$AichatPath' is already in User PATH."
+    }
 
-       For System PATH (requires Admin, affects all users):
+       **For System PATH (requires Admin, affects all users):**
 
-           $SystemPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
-           $AichatPath = "C:\Tools\bin" # Change this to your actual folder
-           if (-not ($SystemPath -split ';' -contains $AichatPath)) {
-              [System.Environment]::SetEnvironmentVariable("Path", "$SystemPath;$AichatPath", "Machine")
-              Write-Host "Added '$AichatPath' to System PATH. Please restart PowerShell."
-           } else {
-              Write-Host "'$AichatPath' is already in System PATH."
-           }
+    $SystemPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    $AichatPath = "C:\Tools\bin" # Change this to your actual folder
+    if (-not ($SystemPath -split ';' -contains $AichatPath)) {
+       [System.Environment]::SetEnvironmentVariable("Path", "$SystemPath;$AichatPath", "Machine")
+       Write-Host "Added '$AichatPath' to System PATH. Please restart PowerShell."
+    } else {
+       Write-Host "'$AichatPath' is already in System PATH."
+    }
 
       * **Verify:** Open a *new* PowerShell terminal and type `aichat --version`. You should see the version information.
 
    c.  **Configure `aichat` Model & API Key:**
+
        `aichat` needs to know which AI model to use and requires an API key for that service (e.g., OpenAI, OpenRouter, Ollama, Gemini, etc.).
        *Follow the detailed configuration instructions on the [aichat configuration example](https://github.com/sigoden/aichat/blob/main/config.example.yaml).
        * Create/edit a `config.yaml` file. For Windows, this file is located at: `C:\Users\Username\AppData\Roaming\aichat\config.yaml`
