@@ -75,21 +75,20 @@ if (-not ($SystemPath -split ';' -contains $AichatPath)) {
         Create or edit a `config.yaml` file. For Windows, this file is located at: `C:\Users\Username\AppData\Roaming\aichat\config.yaml` (replace `Username` with your Windows username).
         You can quickly open this folder by typing `explorer %APPDATA%\aichat` in PowerShell.
         You don't need to have everything, here is my config that works:
-
-        **Example configuration for OpenRouter with Claude:**
-        ```yaml
+        Example configuration for OpenRouter with Claude:
+        
         model: openrouter:anthropic/claude-3.7-sonnet
         clients:
         - type: openai-compatible
           name: openrouter
           api_base: https://openrouter.ai/api/v1
           api_key: sk-or-v1-a96_YOUR_API_KEY
-        ```
-        Test `aichat` from your terminal after configuration:
-        ```bash
+        
+Test `aichat` from your terminal after configuration:
+
         aichat "What is PowerShell?"
-        ```
-        This will make sure the base application for this script is working.
+        
+This will make sure the base application for this script is working.
 
 2.  **Install `Console2Ai.ps1`**
     1.  Download `Console2Ai.ps1` from this repository and place it in a convenient folder (e.g., `C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai.ps1` or `C:\Scripts\Console2Ai.ps1`).
@@ -117,12 +116,12 @@ Once installed, you have a few ways to interact with Console2Ai:
     a.  **Standard Query:**
         Type your question, command fragment, or error message into the PowerShell prompt.
 
-        ```powershell
+        
         PS C:\> Get-ChildItem -Path C:\NonExistentFolder -Recurse # You see an error after this
         PS C:\> How do I handle 'cannot find path' errors in Get-ChildItem? # Now press Alt+C
         Console2Ai will capture the last 15 lines of console history (by default) plus your typed query ("How do I handle..."). It will then show a status message like:        
         ⌛ Console2Ai (Cmd): Asking AI about 'How do I handle 'cannot find path' errors in Get-ChildItem?' (context: 15 lines)...
-        ```
+        
 
 
     It will send this to `aichat`, and replace your query with the AI's suggested command or explanation.
