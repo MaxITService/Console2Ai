@@ -63,8 +63,7 @@ Follow these steps to get Console2Ai up and running:
         } else {
             Write-Host "'$AichatPath' is already in System PATH."
         }
-        ```
-        -   **Verify:** Open a *new* PowerShell terminal and type `aichat --version`. You should see the version information.
+        ```**Verify:** Open a *new* PowerShell terminal and type `aichat --version`. You should see the version information.
 
     c.  **Configure `aichat` Model & API Key:**
         `aichat` needs to know which AI model to use and requires an API key for that service (e.g., OpenAI, OpenRouter, Ollama, Gemini, etc.).
