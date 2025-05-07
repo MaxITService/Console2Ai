@@ -295,7 +295,7 @@ try {
         [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine() 
     }
 
-    Write-Host "Console2Ai: Hotkeys Alt+C (Command) and Alt+S (Conversation) registered." -ForegroundColor Green
+    Write-Verbose "Console2Ai: Hotkeys Alt+C (Command) and Alt+S (Conversation) registered."
     Write-Verbose "Console2Ai: Verbose logging enabled for hotkey actions."
 
 } catch {
