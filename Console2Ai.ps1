@@ -106,11 +106,34 @@ function Invoke-AIConsoleHelp {
     $fullAIPrompt = "$formattedInstruction$([Environment]::NewLine)$([Environment]::NewLine)$consoleHistory"
     $fullAIPrompt = $fullAIPrompt.TrimEnd()
     Write-Verbose "Invoke-AIConsoleHelp: Full prompt for AI: `n$fullAIPrompt"
-    Write-Host "Invoke-AIConsoleHelp: Sending to AI ($AIChatExecutable) for command suggestion..." -ForegroundColor DarkCyan
+    # Use PSReadLine to display status directly in the console
+    $currentLine = $null; $currentCursor = $null
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$currentLine, [ref]$currentCursor)
+    [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
+    [Microsoft.PowerShell.PSConsoleReadLine]::Insert("Invoke-AIConsoleHelp: Sending to AI ($AIChatExecutable) for command suggestion...")
+    # Ensure UTF-8 output in this session
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     try { 
+        # Execute the AI command and capture the output
+        $result = & $AIChatExecutable -e $fullAIPrompt
+        
+        # Restore the original line if we have one
+        [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
+        if ($currentLine) {
+            [Microsoft.PowerShell.PSConsoleReadLine]::Insert($currentLine)
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($currentCursor)
+        }
+        
         # Return the output directly so Alt+C can use it
-        return (& $AIChatExecutable -e $fullAIPrompt)
+        return $result
     } catch { 
+        # Restore the original line if we have one
+        [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
+        if ($currentLine) {
+            [Microsoft.PowerShell.PSConsoleReadLine]::Insert($currentLine)
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($currentCursor)
+        }
+        
         Write-Error "Invoke-AIConsoleHelp: Failed to execute AI chat executable '$AIChatExecutable'."
         Write-Error $_.Exception.Message 
         return "ERROR: AI execution failed."
@@ -194,8 +217,7 @@ function Invoke-Console2AiConversation {
     Write-Verbose "Invoke-Console2AiConversation: Full prompt for AI (stdin): `n$fullAIPromptForConversation"
 
     # Display concise feedback
-    Write-Host "User message: '$UserQuery'  With context: Last $LinesToCapture lines of console" -ForegroundColor DarkCyan
-    Write-Host "--- Starting AI session ($($Global:Console2Ai_ConversationMode_AIChatExecutable))... ---" -ForegroundColor DarkCyan
+    Write-Host "--- AI response: ---" -ForegroundColor DarkCyan
     # No Write-Host "" here, let aichat.exe control the next line.
             
     $PreviousOutputEncoding = $OutputEncoding 
@@ -243,19 +265,28 @@ try {
         }
         if ([string]::IsNullOrWhiteSpace($userPromptForAI)) { $userPromptForAI = "User did not provide a specific prompt, analyze history for a command." }
         
-        [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-        $statusMsg = "⌛ Console2Ai (Cmd): Asking AI about '$userPromptForAI' (context: $linesToCapture lines)..."
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($statusMsg)
+        # Ensure UTF-8 output in this session
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         
         # Call the main function to get the AI suggestion
+        # The function now handles displaying and clearing the status message
         $aiSuggestion = Invoke-AIConsoleHelp -LinesToCapture $linesToCapture -UserPrompt $userPromptForAI -ErrorAction SilentlyContinue
         
-        [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine() # Clear status message
-        if ($aiSuggestion -notlike "ERROR:*") {
-            [Microsoft.PowerShell.PSConsoleReadLine]::Insert($aiSuggestion) 
+        # Check if we have a meaningful result
+        if ([string]::IsNullOrWhiteSpace($aiSuggestion)) {
+            # If no result, just restore the original command line
+            [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
+            [Microsoft.PowerShell.PSConsoleReadLine]::Insert($cmdLineStr)
+            [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor)
         } else {
-            $errorMessage = "❌ Console2Ai (Cmd) AI Error. Check verbose output or logs. ($aiSuggestion)"
-            [Microsoft.PowerShell.PSConsoleReadLine]::Insert($errorMessage)
+            # Clear any remaining line content before inserting the result
+            [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
+            if ($aiSuggestion -notlike "ERROR:*") {
+                [Microsoft.PowerShell.PSConsoleReadLine]::Insert($aiSuggestion) 
+            } else {
+                $errorMessage = "❌ Console2Ai (Cmd) AI Error. Check verbose output or logs. ($aiSuggestion)"
+                [Microsoft.PowerShell.PSConsoleReadLine]::Insert($errorMessage)
+            }
         }
     }
 
