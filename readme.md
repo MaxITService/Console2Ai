@@ -192,6 +192,7 @@ You can modify Console2Ai.ps1 directly to change:
 * **$Global:Console2Ai_AIChatExecutable**: If `aichat.exe` is named differently or you want to use a full path.
 * **$Global:Console2Ai_CommandMode_AIPromptInstruction**: The default instruction template sent to the AI for Alt+C (command suggestion).
 * **$Global:Console2Ai_ConversationMode_AIPromptInstruction**: The default instruction template sent to the AI for Alt+S (conversational chat).
+* **$Global:Console2Ai_MaxLinesForHotkeyParse**: The maximum number of console history lines you can specify for Alt+C/Alt+S hotkeys (default: 1999). Change this if you want to allow more or fewer lines to be parsed from the prompt.
 
 ## Troubleshooting
 
