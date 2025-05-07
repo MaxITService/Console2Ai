@@ -1,8 +1,7 @@
 #region Header and Configuration
 # Script: Console2Ai.ps1
-# Version: 2.8 (Alt+S redirects aichat output to file for debugging)
-# (Configuration and other functions remain the same as v2.7)
-# ... (Keep all previous code from #region Header and Configuration down to Save-ConsoleHistoryLog) ...
+# Version: 2.12 (Alt+S delegates to helper function for cleaner execution)
+# (Configuration and other functions remain the same)
 # --- User Configuration ---
 $Global:Console2Ai_AIChatExecutable = "aichat.exe"
 $Global:Console2Ai_CommandMode_AIChatExecutable = $Global:Console2Ai_AIChatExecutable
@@ -11,6 +10,10 @@ $Global:Console2Ai_ConversationMode_AIChatExecutable = $Global:Console2Ai_AIChat
 $Global:Console2Ai_ConversationMode_AIPromptInstruction = "You are in a conversational chat. Please analyze the following console history (last {0} lines) as context. The user's current query is: '{1}'. Respond to the user's query, using the console history for context if relevant. Avoid suggesting a command unless explicitly asked or it's the most natural answer. Focus on explanation and direct answers. Console History:"
 $Global:Console2Ai_DefaultLinesToCaptureForHotkey = 15
 
+#endregion Header and Configuration
+
+# --- Helper Function: Get-ConsoleTextAbovePrompt ---
+# (Unchanged)
 function Get-ConsoleTextAbovePrompt {
     [CmdletBinding()]
     param (
@@ -31,37 +34,89 @@ function Get-ConsoleTextAbovePrompt {
     return $sb.ToString().TrimEnd()
 }
 
+# --- Main Function 1: Invoke-AIConsoleHelp (for Alt+C like behavior) ---
+# (Unchanged)
 function Invoke-AIConsoleHelp {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$false)] [int]$LinesToCapture = 15,
         [Parameter(Mandatory=$false)] [string]$UserPrompt = "User did not provide a specific prompt, analyze history.",
-        [Parameter(Mandatory=$false)] [string]$AIChatExecutable = "aichat.exe",
-        [Parameter(Mandatory=$false)] [string]$AIPromptInstruction = "Please analyze console history (last {0} lines). User request: '{1}'. Suggest PowerShell command. History:"
+        [Parameter(Mandatory=$false)] [string]$AIChatExecutable = "aichat.exe", # Default AI executable for this function
+        [Parameter(Mandatory=$false)] [string]$AIPromptInstruction = "Please analyze the following console history (last {0} lines). The user's specific request is: '{1}'. Identify any issues or the user's likely goal based on both history and request, and suggest a single, concise PowerShell command to help. If the user request is a direct command instruction, fulfill it using the history as context. Console History:"
     )
-    $hist = Get-ConsoleTextAbovePrompt -L $LinesToCapture -EA SilentlyContinue; if ([string]::IsNullOrWhiteSpace($hist)) { Write-Warning "Invoke-AIConsoleHelp: No history." }
-    $fInst = $AIPromptInstruction -f $LinesToCapture, $UserPrompt; $fullPrompt = "$fInst$([Environment]::NewLine)$([Environment]::NewLine)$hist"
-    Write-Verbose "Invoke-AIConsoleHelp: Prompt: `n$fullPrompt"; Write-Host "Invoke-AIConsoleHelp: Sending to AI ($AIChatExecutable)..."
-    try { & $AIChatExecutable -e $fullPrompt } catch { Write-Error "Invoke-AIConsoleHelp: Failed: $($_.Exception.Message)" }
+    Write-Verbose "Invoke-AIConsoleHelp: Attempting to capture $LinesToCapture lines for AI assistance."
+    $consoleHistory = Get-ConsoleTextAbovePrompt -LinesToCapture $LinesToCapture -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace($consoleHistory)) { Write-Warning "Invoke-AIConsoleHelp: No console history was captured, or captured history is empty. AI might lack context." }
+    $formattedInstruction = $AIPromptInstruction -f $LinesToCapture, $UserPrompt
+    $fullAIPrompt = "$formattedInstruction$([Environment]::NewLine)$([Environment]::NewLine)$consoleHistory"
+    Write-Verbose "Invoke-AIConsoleHelp: Full prompt for AI: `n$fullAIPrompt"
+    Write-Host "Invoke-AIConsoleHelp: Sending the last $LinesToCapture lines (and user prompt) to AI ($AIChatExecutable)..."
+    try { & $AIChatExecutable -e $fullAIPrompt } catch { Write-Error "Invoke-AIConsoleHelp: Failed to execute AI chat executable '$AIChatExecutable'."; Write-Error $_.Exception.Message }
 }
 
+# --- Main Function 2: Save-ConsoleHistoryLog ---
+# (Unchanged)
 function Save-ConsoleHistoryLog {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$false)] [int]$LinesToCapture = 15,
-        [Parameter(Mandatory=$false)] [string]$LogFilePath = ".\log.txt"
+        [Parameter(Mandatory=$false)] [string]$LogFilePath = ".\log.txt" # Default log file path
     )
-    $hist = Get-ConsoleTextAbovePrompt -L $LinesToCapture -EA SilentlyContinue; if ($null -eq $hist) { $hist = "" }
-    try { Set-Content -Path $LogFilePath -Value $hist -Enc UTF8 -Force; Write-Host "Save-ConsoleHistoryLog: Saved to '$LogFilePath'." } catch { Write-Error "Save-ConsoleHistoryLog: Failed: $($_.Exception.Message)" }
+    Write-Verbose "Save-ConsoleHistoryLog: Attempting to capture $LinesToCapture lines to save to log file '$LogFilePath'."
+    $consoleHistory = Get-ConsoleTextAbovePrompt -LinesToCapture $LinesToCapture -ErrorAction SilentlyContinue
+    if ($null -eq $consoleHistory) { $consoleHistory = "" } 
+    try { Set-Content -Path $LogFilePath -Value $consoleHistory -Encoding UTF8 -Force; Write-Host "Save-ConsoleHistoryLog: Last $LinesToCapture console lines (or available history) saved to '$LogFilePath'." } catch { Write-Error "Save-ConsoleHistoryLog: Failed to save console history to '$LogFilePath'."; Write-Error $_.Exception.Message }
 }
-#endregion Header and Configuration
+
+# --- NEW Helper Function for Alt+S Conversation ---
+function Invoke-Console2AiConversation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$UserQuery,
+
+        [Parameter(Mandatory=$true)]
+        [int]$LinesToCapture
+    )
+
+    $consoleHistory = Get-ConsoleTextAbovePrompt -LinesToCapture $LinesToCapture -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace($consoleHistory)) { $consoleHistory = "" }
+
+    $formattedInstruction = $Global:Console2Ai_ConversationMode_AIPromptInstruction -f $LinesToCapture, $UserQuery
+    $fullAIPromptForConversation = if ([string]::IsNullOrWhiteSpace($consoleHistory)) { $formattedInstruction } else { "$formattedInstruction$([Environment]::NewLine)$([Environment]::NewLine)$consoleHistory" }
+    $fullAIPromptForConversation = $fullAIPromptForConversation.TrimEnd()
+    
+    Write-Verbose "Invoke-Console2AiConversation: Full prompt for AI (stdin): `n$fullAIPromptForConversation"
+
+    # Display feedback messages
+    Write-Host "" 
+    Write-Host "🗣️  Console2Ai (Conversation with AI)" -ForegroundColor Cyan
+    Write-Host "   Sending your query: '$UserQuery'"
+    Write-Host "   With context: Last $LinesToCapture lines of console history."
+    Write-Host "--- Starting AI session with $($Global:Console2Ai_ConversationMode_AIChatExecutable)... (Press Ctrl+C to interrupt AI if needed) ---" -ForegroundColor Green
+    Write-Host "" 
+            
+    $PreviousOutputEncoding = $OutputEncoding 
+    $OutputEncoding = [System.Text.Encoding]::UTF8 
+    try {
+        $fullAIPromptForConversation | & $Global:Console2Ai_ConversationMode_AIChatExecutable
+    } catch {
+        Write-Error "Invoke-Console2AiConversation: Error executing AI chat '$($Global:Console2Ai_ConversationMode_AIChatExecutable)'."
+        Write-Error ($_.Exception.Message) 
+        Write-Host "--- AI session failed or ended with an error. ---" -ForegroundColor Red
+    } finally {
+        $OutputEncoding = $PreviousOutputEncoding 
+        Write-Host "" 
+    }
+}
+#endregion
 
 # --- PSReadLine Hotkey Bindings ---
 try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
     # --- Alt+C: AI Command Suggestion Hotkey ---
-    # (Remains the same as v2.7)
+    # (Remains the same)
     Set-PSReadLineKeyHandler -Chord "alt+c" -ScriptBlock {
         param($key, $arg)
         $cmdLineStr = $null; $cursor = $null; [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$cmdLineStr, [ref]$cursor)
@@ -98,54 +153,17 @@ try {
         }
         if ([string]::IsNullOrWhiteSpace($userPromptForAI)) { $userPromptForAI = "User's query is empty. Please analyze history and provide general assistance." }
         
-        $consoleHistory = Get-ConsoleTextAbovePrompt -LinesToCapture $linesToCapture -ErrorAction SilentlyContinue
-        if ([string]::IsNullOrWhiteSpace($consoleHistory)) { $consoleHistory = "" }
+        # Escape single quotes in userPromptForAI for embedding in a command string
+        $escapedUserQuery = $userPromptForAI.Replace("'", "''")
 
-        $formattedInstruction = $Global:Console2Ai_ConversationMode_AIPromptInstruction -f $linesToCapture, $userPromptForAI
-        $fullAIPromptForConversation = if ([string]::IsNullOrWhiteSpace($consoleHistory)) { $formattedInstruction } else { "$formattedInstruction$([Environment]::NewLine)$([Environment]::NewLine)$consoleHistory" }
-        $fullAIPromptForConversation = $fullAIPromptForConversation.TrimEnd()
+        # Construct the command to call our helper function
+        $commandToExecute = "Invoke-Console2AiConversation -UserQuery '$escapedUserQuery' -LinesToCapture $linesToCapture"
         
-        Write-Verbose "Console2Ai Hotkey (Alt+S): Full prompt for AI (stdin): `n$fullAIPromptForConversation"
+        Write-Verbose "Console2Ai Hotkey (Alt+S): Inserting command: $commandToExecute"
 
         [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert(" ") 
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine() 
-
-        Write-Host "" 
-        Write-Host "🗣️  Console2Ai (Conversation with AI)" -ForegroundColor Cyan
-        Write-Host "   Sending your query: '$userPromptForAI'"
-        Write-Host "   With context: Last $linesToCapture lines of console history."
-        
-        # --- MODIFICATION FOR DEBUGGING ---
-        $tempOutputFile = Join-Path $env:TEMP "aichat_output_debug.txt"
-        Write-Host "--- Starting AI session. Output will be redirected to '$tempOutputFile' ---" -ForegroundColor Yellow
-        Write-Host "" 
-        
-        $PreviousOutputEncoding = $OutputEncoding 
-        $OutputEncoding = [System.Text.Encoding]::UTF8 
-        try {
-            # Pipe the prompt and redirect STDOUT and STDERR to a file
-            # Use *>&1 to merge stderr to stdout, then redirect stdout to file.
-            # Or use separate redirections: > $tempOutputFile 2> $tempErrorFile
-            $fullAIPromptForConversation | & $Global:Console2Ai_ConversationMode_AIChatExecutable *> $tempOutputFile
-            
-            Write-Host "--- AI process finished. Check '$tempOutputFile' for output. ---" -ForegroundColor Green
-            if (Test-Path $tempOutputFile) {
-                Write-Host "--- First few lines of '$tempOutputFile': ---"
-                Get-Content $tempOutputFile -TotalCount 5 | ForEach-Object { Write-Host "FILE: $_" }
-                Write-Host "--- End of preview ---"
-            } else {
-                Write-Host "Output file '$tempOutputFile' was not created." -ForegroundColor Red
-            }
-
-        } catch {
-            Write-Error "Console2Ai Hotkey (Alt+S): Error executing AI chat '$($Global:Console2Ai_ConversationMode_AIChatExecutable)'."
-            Write-Error ($_.Exception.Message) 
-            Write-Host "--- AI session failed or ended with an error. ---" -ForegroundColor Red
-        } finally {
-            $OutputEncoding = $PreviousOutputEncoding 
-            Write-Host "" 
-        }
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($commandToExecute) 
+        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine() # This submits the Invoke-Console2AiConversation command
     }
 
     Write-Verbose "Console2Ai: Alt+C (Command Mode) and Alt+S (Conversation Mode) hotkeys registered."
