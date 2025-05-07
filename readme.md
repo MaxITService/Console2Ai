@@ -110,7 +110,11 @@ This is the quickest way to get AI assistance for command suggestions!
        PS C:\> Get-ChildItem -Path C:\NonExistentFolder -Recurse # You see an error after this
        PS C:\> How do I handle 'cannot find path' errors in Get-ChildItem? # Now press Alt+C
        ```
-       Console2Ai will capture the last 15 lines of console history (by default) plus your typed query ("How do I handle..."). It will then show a `⌛ Console2Ai: Capturing 15 lines...` message, send it all to `aichat`, and replace your query with the AI's suggested command or explanation.
+       Console2Ai will capture the last 15 lines of console history (by default) plus your typed query ("How do I handle..."). It will then show a status message like:
+
+    ⌛ Console2Ai (Cmd): Asking AI about 'How do I handle 'cannot find path' errors in Get-ChildItem?' (context: 15 lines)...
+
+It will send this to `aichat`, and replace your query with the AI's suggested command or explanation.
 
    b.  **Specify Line Count for History:** ✨
        If you want to provide more or less context from your console history:
@@ -185,8 +189,9 @@ You can use PowerShell's built-in help system:
 
 You can modify Console2Ai.ps1 directly to change:
 
-* **$Console2Ai_Hotkey_AIChatExecutable**: If `aichat.exe` is named differently or you want to use a full path.
-* **$Console2Ai_Hotkey_AIPromptInstruction**: The default instruction template sent to the AI.
+* **$Global:Console2Ai_AIChatExecutable**: If `aichat.exe` is named differently or you want to use a full path.
+* **$Global:Console2Ai_CommandMode_AIPromptInstruction**: The default instruction template sent to the AI for Alt+C (command suggestion).
+* **$Global:Console2Ai_ConversationMode_AIPromptInstruction**: The default instruction template sent to the AI for Alt+S (conversational chat).
 
 ## Troubleshooting
 
