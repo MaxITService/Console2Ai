@@ -151,14 +151,13 @@ Once installed, you have a few ways to interact with Console2Ai:
     -   **Example Usage:**
         -   To ask why your script is running slowly, type your query and press `Alt+S`:
             ```powershell
-            PS C:\> Why is my script running slowly? # Press Alt+S
+            PS C:\> from this dir, which files are needed for funciton and which are temporary files? # Press Alt+S
             ```
-            This will start a chat session with the AI, including recent console history as context.
-        -   To specify a different number of history lines (e.g., 40):
+            This will start a response from AI including recent console history as context.
+        -   To specify a different number of history lines (e.g., 40) works with both Alt+C and Alt+S:
             ```powershell
-            PS C:\> 40 What are some ways to optimize this script? # Press Alt+S
-            ```
-    -   Under the hood, Alt+S calls the `Invoke-Console2AiConversation` function.
+            PS C:\> 40 Delete just all temporary config files from this folder # Press Alt+C
+    -   Under the hood, Alt+S calls the `Invoke-Console2AiConversation` function. And Alt+C calls `Invoke-AIConsoleHelp` function.
 
 3.  **Using the PowerShell Functions** ⚙️
     Console2Ai also provides standard PowerShell functions if you prefer:
