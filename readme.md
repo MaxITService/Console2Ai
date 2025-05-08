@@ -103,7 +103,7 @@ This will make sure the base application for this script is working.
 
     3.  Copy and paste the following snippet into your profile (adjust the path as needed):
         ```powershell
-        # Import-Module PSReadLine -ErrorAction SilentlyContinue  # Uncomment if needed
+        # Import-Module PSReadLine  # Uncomment if needed
         . C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai.ps1  # Adjust path if needed
         ```
 
