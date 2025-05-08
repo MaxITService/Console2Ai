@@ -121,10 +121,7 @@ Once installed, you have a few ways to interact with Console2Ai:
 
         
         PS C:\> Get-ChildItem -Path C:\NonExistentFolder -Recurse # You see an error after this
-        PS C:\> How do I handle 'cannot find path' errors in Get-ChildItem? # Now press Alt+C
-        Console2Ai will capture the last 15 lines of console history (by default) plus your typed query ("How do I handle..."). It will then show a status message like:        
-        ⌛ Console2Ai (Cmd): Asking AI about 'How do I handle 'cannot find path' errors in Get-ChildItem?' (context: 15 lines)...
-        
+        PS C:\> Retry with correct path # Now press Alt+C   
 
 
     It will send this to `aichat`, and replace your query with the AI's suggested command or explanation.
@@ -135,7 +132,7 @@ Once installed, you have a few ways to interact with Console2Ai:
 
             
              ... lots of previous output ...
-            PS C:\> 50 explain the last few commands and suggest an optimization # Press Alt+C
+            PS C:\> 50 explain the last few commands and suggest an optimization # Press Alt+S
             
     Console2Ai will capture the last 50 lines of history along with your query.
     If you only type a number (e.g., `30`) and press `Alt+C`, it will use that many lines of history and a generic prompt for the AI.
@@ -156,7 +153,7 @@ Once installed, you have a few ways to interact with Console2Ai:
             This will start a response from AI including recent console history as context.
         -   To specify a different number of history lines (e.g., 40) works with both Alt+C and Alt+S:
             ```powershell
-            PS C:\> 40 Delete just all temporary config files from this folder # Press Alt+C
+            PS C:\> 40 ok, all files you mentioned - delete them with Regex # Press Alt+C
     -   Under the hood, Alt+S calls the `Invoke-Console2AiConversation` function. And Alt+C calls `Invoke-AIConsoleHelp` function.
 
 3.  **Using the PowerShell Functions** ⚙️
@@ -212,7 +209,7 @@ You can modify `Console2Ai.ps1` directly to change:
 
 -   Ensure PSReadLine module is loaded. (It usually is by default in modern PowerShell).
 -   Check your PowerShell profile (`$PROFILE`) to ensure `Console2Ai.ps1` is being dot-sourced correctly and after PSReadLine might be imported.
--   No other Alt+C binding is overriding it.
+-   Ensure no other Alt+C binding is overriding it.
 
 ### AI Errors (❌ Console2Ai AI Error...)
 
