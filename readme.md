@@ -226,4 +226,13 @@ You can modify `Console2Ai.ps1` directly to change:
 
 ## License
 
-Do whatever you want just mention me
+Do whatever you want just mention me if you can
+
+## Promo (My other stuff!)
+Check out my Free Extension for Web AI chats to quickly reuse your prompts:
+
+[![Check out my Free Extension for Web AI chats to quickly reuse your prompts](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text/raw/master/Promo/promo440_280.png)](https://chromewebstore.google.com/detail/oneclickprompts/iiofmimaakhhoiablomgcjpilebnndbf?authuser=1)
+
+[OneClickPrompts on Chrome Web Store](https://chromewebstore.google.com/detail/oneclickprompts/iiofmimaakhhoiablomgcjpilebnndbf?authuser=1)
+
+[it is open source](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text)
