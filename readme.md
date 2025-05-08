@@ -7,6 +7,9 @@ Console2Ai is a PowerShell script that captures your console buffer content and 
 
 ## Core Functionality
 
+![Demo GIF](Promo/Gif_Demo.gif)
+
+
 -   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 15 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output.
 -   **Alt+C Hotkey:** Quick access to AI command suggestion with a simple keyboard shortcut. (What you typed as prompt will be REPLACED with ready to press enter command)
 -   **Alt+S Hotkey:** Instantly start a conversational AI session with your console history and current query.
