@@ -10,7 +10,7 @@ Console2Ai is a PowerShell script that captures your console buffer content and 
 ![Demo GIF](Promo/Gif_Demo.gif)
 
 
--   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 15 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output.
+-   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 180 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output. You are unfortunately limited to what you see on screen. To capture more, you need to: in settings of your PowerShell profile, disable "Scroll to input when typing" and make window as big as possible and use Ctrl + Mousewheel to change scaling, the more you see, the more will be captured.
 -   **Alt+C Hotkey:** Quick access to AI command suggestion with a simple keyboard shortcut. (What you typed as prompt will be REPLACED with ready to press enter command)
 -   **Alt+S Hotkey:** Instantly start a conversational AI session with your console history and current query.
 -   **Context Control:** Specify how many lines of console history (1-1999) to include in the AI prompt. Simply type a number before prompt and let it go! like "50 explain the last few commands and suggest an optimization" - number will be automatically picked up and parsed into console history line count.
@@ -143,7 +143,7 @@ Once installed, you have a few ways to interact with Console2Ai:
     -   **How it works:**
         -   Type your question or message into the PowerShell prompt.
         -   Press `Alt+S`.
-        -   Console2Ai will capture the last 15 lines of console history (by default) plus your typed query, then open a conversational AI session using `aichat`.
+        -   Console2Ai will capture the last 180 lines of console history (by default) plus your typed query, then open a conversational AI session using `aichat`.
         -   The AI will reply conversationally, focusing on explanations, troubleshooting, or general answers (not just commands).
     -   **Example Usage:**
         -   To ask why your script is running slowly, type your query and press `Alt+S`:
@@ -163,7 +163,7 @@ Once installed, you have a few ways to interact with Console2Ai:
         Manually trigger AI assistance.
 
         
-        # Get help based on the last 15 lines of console history
+        # Get help based on the last 180 lines of console history
         Invoke-AIConsoleHelp
 
         # Get help with more context and a specific prompt
@@ -179,7 +179,7 @@ Once installed, you have a few ways to interact with Console2Ai:
     c.  **`Save-ConsoleHistoryLog`** 💾
         Save recent console output to a file.
         
-        # Save the last 15 lines to .\log.txt
+        # Save the last 180 lines to .\log.txt (if your window is big enough)
         Save-ConsoleHistoryLog
 
         # Save the last 30 lines to a custom file

@@ -22,7 +22,7 @@ $Global:Console2Ai_ConversationMode_AIChatExecutable = $Global:Console2Ai_AIChat
 $Global:Console2Ai_ConversationMode_AIPromptInstruction = "You are in a conversational chat. Please analyze the following console history (last {0} lines) as context. The user's current query is: '{1}'. Respond to the user's query, using the console history for context if relevant. Avoid suggesting a command unless explicitly asked or it's the most natural answer. Focus on explanation and direct answers. Console History:"
 
 # Default number of lines to capture for hotkeys if not specified in the prompt
-$Global:Console2Ai_DefaultLinesToCaptureForHotkey = 15
+$Global:Console2Ai_DefaultLinesToCaptureForHotkey = 180
 
 #endregion Header and Configuration
 
