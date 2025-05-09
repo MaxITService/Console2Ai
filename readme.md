@@ -2,6 +2,7 @@
 
 [![PowerShell Version](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%207%2B-blue.svg)](https://docs.microsoft.com/en-us/powershell/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Hits](https://hits.sh/github.com/MaxITService/Console2Ai.svg?style=flat)](https://hits.sh/github.com/MaxITService/Console2Ai/)
 
 Console2Ai is a PowerShell script that captures your console buffer content and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
 
