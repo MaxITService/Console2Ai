@@ -4,7 +4,34 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Hits](https://hits.sh/github.com/MaxITService/Console2Ai.svg?style=flat)](https://hits.sh/github.com/MaxITService/Console2Ai/)
 
-Console2Ai is a PowerShell script that captures your console buffer content and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
+Console2Ai is a PowerShell script that captures your console screen buffer content and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
+
+---
+
+# ⚠️ Important Note
+
+> *— But I’ve seen products like **Warp**, **Codex CLI**, **Terminal Beta**, **Azure AIShell**, or **VS Code GitHub Copilot** ...(insert product that does COMPLETELY different thing to the list) ... do exactly the same!*
+
+**There are similarities, but it's Not Exactly like this.** I’ve checked all these products, and technically, **none of them work with your past console screen buffer**—not a single one!
+
+Let me explain:  
+If you’re using Windows Terminal and suddenly realize you want to use an AI tool, here’s the catch:  
+With those other products, if you didn’t start them at the beginning of your session, you have to manually “spin them up” first (except for warp, it has a button for it). Their seamless experience only works if you planned to use them from the start.
+
+**This script is different:**  
+- **You don’t need to prepare or restart your session - in any PowerShell window, anywhere where you can load your profile, you can use your past context AFTER you realized you need it.**
+- **Just press a single key and starts supplying context to AI backend tool - it's script's single purpose.**  
+- **No need for large agent system prompts, thus super cheap**  
+- **No need to feed unneeded interactions to inference - only after you realized you need them, on a portion you need them**
+- **Starts at the speed of inference, super fast.**
+- **Price is your API token usage. (Hello warp)**
+- **FOSS**
+- **Windows terminal experience if you like it**
+
+In short: **You get immediate, context-aware AI assistance, right when you need it—even if you decide to use it in the middle of your work. No setup, no waiting, no planning ahead.**
+
+---
+
 
 ## Core Functionality
 
