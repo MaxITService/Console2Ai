@@ -1,6 +1,6 @@
 #region Header and Configuration
 # Script: Console2Ai.ps1
-# Version: 3.3 (Production Ready - Remove transcript command headers, add aliases, $null style)
+# Version: 3.4 (Production Ready - Remove last Invoke-Console2AiConversation block from Alt+S history)
 # Author: [Your Name/Handle Here]
 # Description: Provides functions to capture console history via Start-Transcript
 #              and send it to an AI for assistance (command or conversation mode).
@@ -67,7 +67,8 @@ function Invoke-Console2AiTranscriptCleanup {
         }
         foreach ($file in $filesToClean) {
             $logTimestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-            $logMessagePrefix = "$logTimestamp - Attempting to delete old transcript '$($file.FullName)' (LastWrite: $($file.LastWriteTime)):"
+            # Escape colon in variable output for Write-Host/Verbose/etc.
+            $logMessagePrefix = "$logTimestamp - Attempting to delete old transcript '$($file.FullName)' (LastWrite`: $($file.LastWriteTime)):"
             try {
                 Remove-Item -Path $file.FullName -Force -ErrorAction Stop
                 Write-Verbose "Console2Ai: Deleted old transcript: $($file.FullName)"
@@ -138,14 +139,14 @@ function Invoke-AIConsoleHelp {
                 }
                 Write-Verbose "Invoke-AIConsoleHelp: Read $($consoleHistory.Length) characters from transcript."
 
-                # Task 1: Remove transcript command headers
+                # Remove transcript command headers
                 $commandHeaderRegex = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?' # Multiline mode, optional CR, optional final newline
                 $consoleHistory = $consoleHistory -replace $commandHeaderRegex, ''
                 Write-Verbose "Invoke-AIConsoleHelp: Removed transcript command headers."
 
             } catch {
                 Write-Error "Invoke-AIConsoleHelp: Failed to read transcript file '$transcriptPath'. Error: $($_.Exception.Message)"
-                $consoleHistory = ""
+                $consoleHistory = "" # Ensure history is empty on error
             }
         } else {
             Write-Warning "Invoke-AIConsoleHelp: Transcript file '$transcriptPath' not found."
@@ -193,7 +194,7 @@ function Invoke-AIConsoleHelp {
         }
 
         [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-        if ($null -ne $currentLine) { # Task 3: $null on left
+        if ($null -ne $currentLine) {
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert($currentLine)
             [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($currentCursor)
         }
@@ -206,25 +207,26 @@ function Invoke-AIConsoleHelp {
   Initiates a conversational AI session using console transcript history as context.
 .DESCRIPTION
   This function is called by the Alt+S hotkey. It temporarily stops transcription,
-  gathers the user's query and transcript history, formats a prompt for conversational AI,
-  displays feedback, and then launches the AI executable, piping the prompt to its standard input.
-  The AI executable takes over the console. Transcription is restarted when the AI exits.
+  gathers the user's query and transcript history (removing its own invocation from the history),
+  formats a prompt for conversational AI, displays feedback, and then launches the AI executable,
+  piping the prompt to its standard input. The AI executable takes over the console.
+  Transcription is restarted when the AI exits.
 .PARAMETER UserQuery
   The query typed by the user. Can also be specified as -UQ.
 .PARAMETER LinesFromTranscript
   The number of console transcript lines from the end to include as context. Can also be specified as -LTQ.
 .NOTES
   This function handles transcript stop/start around the AI execution.
+  It attempts to remove the last command block from the history if it corresponds
+  to this function's own invocation, providing cleaner context to the AI.
 #>
 function Invoke-Console2AiConversation {
     [CmdletBinding()]
     param(
-        # Task 2: Add Alias UQ
         [Parameter(Mandatory=$true)]
         [Alias('UQ')]
         [string]$UserQuery,
 
-        # Task 2: Add Alias LTQ
         [Parameter(Mandatory=$true)]
         [Alias('LTQ')]
         [int]$LinesFromTranscript
@@ -266,14 +268,42 @@ function Invoke-Console2AiConversation {
                 }
                  Write-Verbose "Invoke-Console2AiConversation: Read $($consoleHistory.Length) characters from transcript."
 
-                 # Task 1: Remove transcript command headers
+                 # --- NEW v3.4: Remove the last command block if it's this function's call ---
+                 $commandBlockHeaderPattern = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?' # Pattern for the header itself
+                 $matches = [regex]::Matches($consoleHistory, $commandBlockHeaderPattern)
+
+                 if ($matches.Count -gt 0) {
+                     $lastMatch = $matches[$matches.Count - 1]
+                     # Find the text *after* the last header match
+                     $textAfterLastHeader = $consoleHistory.Substring($lastMatch.Index + $lastMatch.Length)
+                     # Find the first non-empty line of text after the header (should be the command)
+                     # Use -split and Where-Object to handle potential blank lines after header
+                     $firstLineAfterHeader = ($textAfterLastHeader -split '\r?\n' | Where-Object { $_ -match '\S' })[0]
+
+                     # Check if the first line found contains the specific command name
+                     if (($null -ne $firstLineAfterHeader) -and ($firstLineAfterHeader -match 'Invoke-Console2AiConversation')) {
+                          Write-Verbose "Invoke-Console2AiConversation: Removing the last command block (current Invoke-Console2AiConversation call) from history."
+                          # Truncate the history *before* the start index of the last matched header
+                          $consoleHistory = $consoleHistory.Substring(0, $lastMatch.Index).TrimEnd()
+                          Write-Verbose "Invoke-Console2AiConversation: History trimmed. New length: $($consoleHistory.Length)"
+                     } else {
+                          Write-Verbose "Invoke-Console2AiConversation: Last command block header found, but the following command wasn't Invoke-Console2AiConversation. Not removing."
+                          if ($null -eq $firstLineAfterHeader) { Write-Verbose "Invoke-Console2AiConversation: Could not find command line after last header." }
+                          else { Write-Verbose "Invoke-Console2AiConversation: Command found was: '$firstLineAfterHeader'" }
+                     }
+                 } else {
+                     Write-Verbose "Invoke-Console2AiConversation: No command block headers found in the transcript history."
+                 }
+                 # --- END NEW v3.4 SECTION ---
+
+                 # Remove *remaining* transcript command headers from the history being sent
                  $commandHeaderRegex = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?' # Multiline mode, optional CR, optional final newline
                  $consoleHistory = $consoleHistory -replace $commandHeaderRegex, ''
-                 Write-Verbose "Invoke-Console2AiConversation: Removed transcript command headers."
+                 Write-Verbose "Invoke-Console2AiConversation: Removed remaining transcript command headers."
 
             } catch {
-                Write-Error "Invoke-Console2AiConversation: Failed to read transcript file '$transcriptPath'. Error: $($_.Exception.Message)"
-                $consoleHistory = ""
+                Write-Error "Invoke-Console2AiConversation: Failed to read or process transcript file '$transcriptPath'. Error: $($_.Exception.Message)"
+                $consoleHistory = "" # Ensure history is empty on error
             }
         } else {
             Write-Warning "Invoke-Console2AiConversation: Transcript file '$transcriptPath' not found."
@@ -291,11 +321,12 @@ function Invoke-Console2AiConversation {
         Write-Verbose "Invoke-Console2AiConversation: Full prompt for AI (stdin, $($fullAIPromptForConversation.Length) chars): `n$($fullAIPromptForConversation.Substring(0, [Math]::Min($fullAIPromptForConversation.Length, 500)))..."
 
         Write-Host "--- Starting AI Conversation ($aiExecutable)... ---" -ForegroundColor DarkCyan
-        $PreviousOutputEncoding = $OutputEncoding
-        $OutputEncoding = [System.Text.Encoding]::UTF8
-        $ConsoleOutputEncoding = [Console]::OutputEncoding
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $PreviousOutputEncoding = $OutputEncoding # Store current $OutputEncoding
+        $OutputEncoding = [System.Text.Encoding]::UTF8 # Set for piping
+        $ConsoleOutputEncoding = [Console]::OutputEncoding # Store current Console encoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 # Set for external process output
         try {
+            # Pipe the prompt to the AI executable's standard input
             $fullAIPromptForConversation | & $aiExecutable
             Write-Verbose "Invoke-Console2AiConversation: AI executable exited."
             Write-Host "--- AI Conversation Ended ---" -ForegroundColor DarkCyan
@@ -304,6 +335,7 @@ function Invoke-Console2AiConversation {
             Write-Error ($_.Exception.Message)
             Write-Host "--- AI session failed or ended with an error. ---" -ForegroundColor Red
         } finally {
+            # Restore original encodings
             $OutputEncoding = $PreviousOutputEncoding
             [Console]::OutputEncoding = $ConsoleOutputEncoding
         }
@@ -364,7 +396,7 @@ function Save-ConsoleHistoryLog {
                     $consoleHistory = Get-Content -Path $transcriptPath -Raw -ErrorAction Stop
                 }
 
-                 # Task 1: Remove transcript command headers
+                 # Remove transcript command headers
                  $commandHeaderRegex = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?'
                  $consoleHistory = $consoleHistory -replace $commandHeaderRegex, ''
                  Write-Verbose "Save-ConsoleHistoryLog: Removed transcript command headers before saving."
@@ -416,7 +448,7 @@ if (-not (Test-Path -Path $baseDir -PathType Container)) {
         Write-Verbose "Console2Ai: Created transcript base directory '$baseDir'."
     } catch {
         Write-Error "Console2Ai: Failed to create transcript base directory '$baseDir'. Transcript functionality disabled. Error: $($_.Exception.Message)"
-        return
+        return # Stop script execution if base dir fails
     }
 }
 Invoke-Console2AiTranscriptCleanup -ErrorAction SilentlyContinue
@@ -425,7 +457,11 @@ try {
     $uniqueFilename = "Console2Ai_Transcript_${timestamp}_PID$($PID).txt"
     $Global:Console2Ai_CurrentTranscriptPath = Join-Path $baseDir $uniqueFilename
 
+    # Suppress the default "Transcript started..." message
+    $ProgressPreference = 'SilentlyContinue' # Temporarily suppress progress for Start-Transcript
     Start-Transcript -Path $Global:Console2Ai_CurrentTranscriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
+    $ProgressPreference = 'Continue' # Restore preference
+
     $Global:Console2Ai_TranscriptActive = $true
     $shortLogName = Split-Path -Path $Global:Console2Ai_CurrentTranscriptPath -Leaf
     Write-Host "Console2Ai: Transcript active @ $shortLogName" -ForegroundColor Cyan
@@ -434,6 +470,7 @@ try {
     Write-Error "Console2Ai: Failed to start transcript '$($Global:Console2Ai_CurrentTranscriptPath)'. AI context will be unavailable. Error: $($_.Exception.Message)"
     $Global:Console2Ai_CurrentTranscriptPath = $null
     $Global:Console2Ai_TranscriptActive = $false
+    $ProgressPreference = 'Continue' # Ensure preference is restored even on error
 }
 #endregion Initialization
 
@@ -446,7 +483,7 @@ try {
         [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$cmdLineStr, [ref]$cursor)
 
         $linesFromTranscript = $Global:Console2Ai_DefaultLinesFromTranscriptForHotkey
-        $userPromptForAI = if ($null -ne $cmdLineStr) { $cmdLineStr.Trim() } else { "" } # Task 3: $null on left
+        $userPromptForAI = if ($null -ne $cmdLineStr) { $cmdLineStr.Trim() } else { "" }
         $lC = 0
         if (-not [string]::IsNullOrWhiteSpace($cmdLineStr)) {
             if ($cmdLineStr -match '^(\d{1,5})\s+(.+)$') {
@@ -467,7 +504,7 @@ try {
 
         $aiSuggestion = Invoke-AIConsoleHelp -LinesFromTranscript $linesFromTranscript -UserPrompt $userPromptForAI -ErrorAction SilentlyContinue
 
-        if ($null -ne $aiSuggestion -and $aiSuggestion -notlike "ERROR:*") { # Task 3: $null on left
+        if ($null -ne $aiSuggestion -and $aiSuggestion -notlike "ERROR:*") {
              [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
              [Microsoft.PowerShell.PSConsoleReadLine]::Insert($aiSuggestion)
         } elseif ($aiSuggestion -like "ERROR:*") {
@@ -482,7 +519,7 @@ try {
         [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$commandLineStringFromRef, [ref]$cursorOutputForRef)
 
         $linesFromTranscript = $Global:Console2Ai_DefaultLinesFromTranscriptForHotkey
-        $userPromptForAI = if ($null -ne $commandLineStringFromRef) { $commandLineStringFromRef.Trim() } else { "" } # Task 3: $null on left
+        $userPromptForAI = if ($null -ne $commandLineStringFromRef) { $commandLineStringFromRef.Trim() } else { "" }
         $lC = 0
         if (-not [string]::IsNullOrWhiteSpace($commandLineStringFromRef)) {
             if ($commandLineStringFromRef -match '^(\d{1,5})\s+(.+)$') {
@@ -498,8 +535,8 @@ try {
             }
         }
         if ([string]::IsNullOrWhiteSpace($userPromptForAI)) { $userPromptForAI = "User's query is empty. Please analyze history and provide general assistance." }
-        $escapedUserQuery = $userPromptForAI.Replace("'", "''")
-        # Task 2: Use aliases in the generated command for consistency (though not strictly necessary)
+        $escapedUserQuery = $userPromptForAI.Replace("'", "''") # Basic escaping for command line insertion
+        # Use aliases in the generated command for consistency
         $commandToExecute = "Invoke-Console2AiConversation -UQ '$escapedUserQuery' -LTQ $linesFromTranscript"
         Write-Verbose "Console2Ai Hotkey (Alt+S): Inserting command: $commandToExecute"
         [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
