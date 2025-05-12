@@ -1,6 +1,6 @@
 #region Header and Configuration
 # Script: Console2Ai.ps1
-# Version: 3.0 (Production Ready - Transcript-based context)
+# Version: 3.1 (Production Ready - Fixes for PS 7.5.1 Get-Transcript, Get-Content -Raw -Tail, and Start-Transcript message)
 # Author: [Your Name/Handle Here]
 # Description: Provides functions to capture console history via Start-Transcript
 #              and send it to an AI for assistance (command or conversation mode).
@@ -147,7 +147,7 @@ function Invoke-AIConsoleHelp {
 
     $transcriptPath = $Global:Console2Ai_CurrentTranscriptPath
     $consoleHistory = ""
-    $transcriptWasRunning = $false
+    $transcriptWasActuallyRunning = $false # More precise flag
     $aiResult = "ERROR: AI execution did not produce a result." # Default error
 
     # Display status message using PSReadLine *before* stopping transcript
@@ -158,32 +158,33 @@ function Invoke-AIConsoleHelp {
 
     try {
         # --- Stop Transcript & Read Content ---
-        try {
-            Get-Transcript # Check if running, throws if not
-            Stop-Transcript -ErrorAction Stop
-            $transcriptWasRunning = $true
-            Write-Verbose "Invoke-AIConsoleHelp: Stopped transcript '$transcriptPath' temporarily."
-        } catch {
-            # Transcript wasn't running (unexpected) or error stopping. Log it.
-            Write-Warning "Invoke-AIConsoleHelp: Could not stop transcript (might not have been running). Attempting to read file anyway. Error: $($_.Exception.Message)"
-            $transcriptWasRunning = $false # Assume it wasn't running if we hit an error here
+        if ($TRANSCRIPT) { # Check if a transcript is active using the automatic variable
+            try {
+                Stop-Transcript -ErrorAction Stop
+                $transcriptWasActuallyRunning = $true
+                Write-Verbose "Invoke-AIConsoleHelp: Stopped transcript '$transcriptPath' temporarily."
+            } catch {
+                Write-Warning "Invoke-AIConsoleHelp: Error stopping transcript. It might have been stopped by another process. Error: $($_.Exception.Message)"
+                $transcriptWasActuallyRunning = $false # Assume it's no longer running if stop failed
+            }
+        } else {
+            Write-Verbose "Invoke-AIConsoleHelp: Transcript was not running ($TRANSCRIPT is null) before attempting to read."
+            $transcriptWasActuallyRunning = $false
         }
+
 
         if (Test-Path -Path $transcriptPath -PathType Leaf) {
             try {
                 if ($LinesFromTranscript -gt 0) {
                     Write-Verbose "Invoke-AIConsoleHelp: Reading last $LinesFromTranscript lines from '$transcriptPath'."
-                    # Use -TotalCount for efficiency if available, otherwise fallback
                     if ((Get-Command Get-Content).Parameters.ContainsKey('Tail')) {
-                         $consoleHistory = (Get-Content -Path $transcriptPath -Tail $LinesFromTranscript -Raw -ErrorAction Stop)
+                         $consoleHistory = (Get-Content -Path $transcriptPath -Tail $LinesFromTranscript -ErrorAction Stop) -join [Environment]::NewLine
                     } else {
-                         # Fallback for older PowerShell versions
                          $allLines = Get-Content -Path $transcriptPath -ReadCount 0 -ErrorAction Stop
                          $startLine = [Math]::Max(0, $allLines.Count - $LinesFromTranscript)
                          $consoleHistory = ($allLines[$startLine..($allLines.Count - 1)]) -join [Environment]::NewLine
                     }
-
-                } else {
+                } else { # -1 or 0 means read all
                     Write-Verbose "Invoke-AIConsoleHelp: Reading entire transcript '$transcriptPath'."
                     $consoleHistory = Get-Content -Path $transcriptPath -Raw -ErrorAction Stop
                 }
@@ -207,13 +208,11 @@ function Invoke-AIConsoleHelp {
         $fullAIPrompt = "$formattedInstruction$([Environment]::NewLine)$([Environment]::NewLine)$consoleHistory"
         $fullAIPrompt = $fullAIPrompt.TrimEnd()
 
-        Write-Verbose "Invoke-AIConsoleHelp: Full prompt for AI ($($fullAIPrompt.Length) chars): `n$($fullAIPrompt.Substring(0, [Math]::Min($fullAIPrompt.Length, 500)))..." # Log beginning of prompt
+        Write-Verbose "Invoke-AIConsoleHelp: Full prompt for AI ($($fullAIPrompt.Length) chars): `n$($fullAIPrompt.Substring(0, [Math]::Min($fullAIPrompt.Length, 500)))..."
 
-        # Ensure UTF-8 output for the AI process
         $PreviousOutputEncoding = [Console]::OutputEncoding
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         try {
-            # Execute the AI command and capture the output
             Write-Verbose "Invoke-AIConsoleHelp: Executing: $AIChatExecutable -e <prompt>"
             $aiResult = & $AIChatExecutable -e $fullAIPrompt
             Write-Verbose "Invoke-AIConsoleHelp: AI execution completed."
@@ -227,27 +226,35 @@ function Invoke-AIConsoleHelp {
 
     } finally {
         # --- Restart Transcript ---
-        if ($transcriptWasRunning) {
+        if ($transcriptWasActuallyRunning) { # Only restart if we actively stopped it
             try {
-                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop
+                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
                 Write-Verbose "Invoke-AIConsoleHelp: Restarted transcript '$transcriptPath'."
             } catch {
                 Write-Error "Invoke-AIConsoleHelp: CRITICAL - Failed to restart transcript '$transcriptPath'! Manual restart might be needed. Error: $($_.Exception.Message)"
                 $Global:Console2Ai_TranscriptActive = $false # Mark as inactive if restart fails
             }
+        } elseif ($Global:Console2Ai_TranscriptActive -and -not $TRANSCRIPT) {
+            # If our script thinks it should be active, but it's not, try to restart it.
+            # This covers cases where it might have been stopped externally or if the initial start in the profile failed silently.
+            Write-Warning "Invoke-AIConsoleHelp: Transcript was expected to be active but wasn't. Attempting to restart."
+            try {
+                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
+                Write-Verbose "Invoke-AIConsoleHelp: Re-initialized transcript '$transcriptPath'."
+            } catch {
+                 Write-Error "Invoke-AIConsoleHelp: CRITICAL - Failed to re-initialize transcript '$transcriptPath'. Error: $($_.Exception.Message)"
+                 $Global:Console2Ai_TranscriptActive = $false
+            }
         }
 
+
         # --- Restore PSReadLine State ---
-        # Clear the status message
         [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-        # Restore original line or insert result
-        if ($currentLine -ne $null) {
+        if ($null -ne $currentLine) {
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert($currentLine)
             [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($currentCursor)
         }
     }
-
-    # Return the AI result (which might be an error string)
     return $aiResult
 }
 
@@ -281,26 +288,29 @@ function Invoke-Console2AiConversation {
 
     if (-not $Global:Console2Ai_TranscriptActive -or [string]::IsNullOrWhiteSpace($Global:Console2Ai_CurrentTranscriptPath)) {
         Write-Error "Invoke-Console2AiConversation: Transcript does not appear to be active or path is missing for this session."
-        # Write directly to host as AI won't run
         Write-Host "--- ERROR: Transcript not active. Cannot start AI conversation. ---" -ForegroundColor Red
         return
     }
 
     $transcriptPath = $Global:Console2Ai_CurrentTranscriptPath
     $consoleHistory = ""
-    $transcriptWasRunning = $false
+    $transcriptWasActuallyRunning = $false # More precise flag
     $aiExecutable = $Global:Console2Ai_ConversationMode_AIChatExecutable
 
     try {
         # --- Stop Transcript & Read Content ---
-        try {
-            Get-Transcript # Check if running
-            Stop-Transcript -ErrorAction Stop
-            $transcriptWasRunning = $true
-            Write-Verbose "Invoke-Console2AiConversation: Stopped transcript '$transcriptPath' temporarily."
-        } catch {
-            Write-Warning "Invoke-Console2AiConversation: Could not stop transcript (might not have been running). Attempting to read file anyway. Error: $($_.Exception.Message)"
-            $transcriptWasRunning = $false
+        if ($TRANSCRIPT) { # Check if a transcript is active
+            try {
+                Stop-Transcript -ErrorAction Stop
+                $transcriptWasActuallyRunning = $true
+                Write-Verbose "Invoke-Console2AiConversation: Stopped transcript '$transcriptPath' temporarily."
+            } catch {
+                Write-Warning "Invoke-Console2AiConversation: Error stopping transcript. Error: $($_.Exception.Message)"
+                $transcriptWasActuallyRunning = $false
+            }
+        } else {
+            Write-Verbose "Invoke-Console2AiConversation: Transcript was not running ($TRANSCRIPT is null) before attempting to read."
+            $transcriptWasActuallyRunning = $false
         }
 
         if (Test-Path -Path $transcriptPath -PathType Leaf) {
@@ -308,13 +318,13 @@ function Invoke-Console2AiConversation {
                  if ($LinesFromTranscript -gt 0) {
                     Write-Verbose "Invoke-Console2AiConversation: Reading last $LinesFromTranscript lines from '$transcriptPath'."
                      if ((Get-Command Get-Content).Parameters.ContainsKey('Tail')) {
-                         $consoleHistory = (Get-Content -Path $transcriptPath -Tail $LinesFromTranscript -Raw -ErrorAction Stop)
+                         $consoleHistory = (Get-Content -Path $transcriptPath -Tail $LinesFromTranscript -ErrorAction Stop) -join [Environment]::NewLine
                      } else {
                          $allLines = Get-Content -Path $transcriptPath -ReadCount 0 -ErrorAction Stop
                          $startLine = [Math]::Max(0, $allLines.Count - $LinesFromTranscript)
                          $consoleHistory = ($allLines[$startLine..($allLines.Count - 1)]) -join [Environment]::NewLine
                      }
-                } else {
+                } else { # -1 or 0 means read all
                     Write-Verbose "Invoke-Console2AiConversation: Reading entire transcript '$transcriptPath'."
                     $consoleHistory = Get-Content -Path $transcriptPath -Raw -ErrorAction Stop
                 }
@@ -340,44 +350,46 @@ function Invoke-Console2AiConversation {
 
         Write-Verbose "Invoke-Console2AiConversation: Full prompt for AI (stdin, $($fullAIPromptForConversation.Length) chars): `n$($fullAIPromptForConversation.Substring(0, [Math]::Min($fullAIPromptForConversation.Length, 500)))..."
 
-        # Display concise feedback before launching AI
         Write-Host "--- Starting AI Conversation ($aiExecutable)... ---" -ForegroundColor DarkCyan
-        # AI tool will typically clear screen or print its own header
 
-        $PreviousOutputEncoding = $OutputEncoding # Store current pipeline encoding
-        $OutputEncoding = [System.Text.Encoding]::UTF8 # Ensure pipeline uses UTF8 for stdin
-        $ConsoleOutputEncoding = [Console]::OutputEncoding # Store console encoding
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 # Ensure console uses UTF8 for AI output
+        $PreviousOutputEncoding = $OutputEncoding
+        $OutputEncoding = [System.Text.Encoding]::UTF8
+        $ConsoleOutputEncoding = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
         try {
-            # Pipe the prompt directly to the executable's standard input
             $fullAIPromptForConversation | & $aiExecutable
             Write-Verbose "Invoke-Console2AiConversation: AI executable exited."
-            # Add a separator after the AI finishes cleanly
             Write-Host "--- AI Conversation Ended ---" -ForegroundColor DarkCyan
-
         } catch {
             Write-Error "Invoke-Console2AiConversation: Error executing AI chat '$aiExecutable'."
             Write-Error ($_.Exception.Message)
             Write-Host "--- AI session failed or ended with an error. ---" -ForegroundColor Red
         } finally {
-            # Restore encodings
             $OutputEncoding = $PreviousOutputEncoding
             [Console]::OutputEncoding = $ConsoleOutputEncoding
         }
 
     } finally {
         # --- Restart Transcript ---
-        if ($transcriptWasRunning) {
+        if ($transcriptWasActuallyRunning) { # Only restart if we actively stopped it
             try {
-                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop
+                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
                 Write-Verbose "Invoke-Console2AiConversation: Restarted transcript '$transcriptPath'."
             } catch {
                 Write-Error "Invoke-Console2AiConversation: CRITICAL - Failed to restart transcript '$transcriptPath'! Manual restart might be needed. Error: $($_.Exception.Message)"
-                $Global:Console2Ai_TranscriptActive = $false # Mark as inactive
+                $Global:Console2Ai_TranscriptActive = $false
+            }
+        } elseif ($Global:Console2Ai_TranscriptActive -and -not $TRANSCRIPT) {
+            Write-Warning "Invoke-Console2AiConversation: Transcript was expected to be active but wasn't. Attempting to restart."
+             try {
+                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
+                Write-Verbose "Invoke-Console2AiConversation: Re-initialized transcript '$transcriptPath'."
+            } catch {
+                 Write-Error "Invoke-Console2AiConversation: CRITICAL - Failed to re-initialize transcript '$transcriptPath'. Error: $($_.Exception.Message)"
+                 $Global:Console2Ai_TranscriptActive = $false
             }
         }
-        # The next PowerShell prompt will provide visual separation after the AI session.
     }
 }
 
@@ -413,45 +425,46 @@ function Save-ConsoleHistoryLog {
 
     $transcriptPath = $Global:Console2Ai_CurrentTranscriptPath
     $consoleHistory = ""
-    $transcriptWasRunning = $false
+    $transcriptWasActuallyRunning = $false
 
     try {
-         # --- Stop Transcript & Read Content ---
-        try {
-            Get-Transcript # Check if running
-            Stop-Transcript -ErrorAction Stop
-            $transcriptWasRunning = $true
-            Write-Verbose "Save-ConsoleHistoryLog: Stopped transcript '$transcriptPath' temporarily."
-        } catch {
-            Write-Warning "Save-ConsoleHistoryLog: Could not stop transcript (might not have been running). Error: $($_.Exception.Message)"
-            $transcriptWasRunning = $false
+        if ($TRANSCRIPT) {
+            try {
+                Stop-Transcript -ErrorAction Stop
+                $transcriptWasActuallyRunning = $true
+                Write-Verbose "Save-ConsoleHistoryLog: Stopped transcript '$transcriptPath' temporarily."
+            } catch {
+                Write-Warning "Save-ConsoleHistoryLog: Could not stop transcript. Error: $($_.Exception.Message)"
+                $transcriptWasActuallyRunning = $false
+            }
+        } else {
+             Write-Verbose "Save-ConsoleHistoryLog: Transcript was not running ($TRANSCRIPT is null) before attempting to read."
+            $transcriptWasActuallyRunning = $false
         }
+
 
         if (Test-Path -Path $transcriptPath -PathType Leaf) {
             try {
                  if ($LinesFromTranscript -gt 0) {
                      if ((Get-Command Get-Content).Parameters.ContainsKey('Tail')) {
-                         $consoleHistory = (Get-Content -Path $transcriptPath -Tail $LinesFromTranscript -Raw -ErrorAction Stop)
+                         $consoleHistory = (Get-Content -Path $transcriptPath -Tail $LinesFromTranscript -ErrorAction Stop) -join [Environment]::NewLine
                      } else {
                          $allLines = Get-Content -Path $transcriptPath -ReadCount 0 -ErrorAction Stop
                          $startLine = [Math]::Max(0, $allLines.Count - $LinesFromTranscript)
                          $consoleHistory = ($allLines[$startLine..($allLines.Count - 1)]) -join [Environment]::NewLine
                      }
-                } else { # Should not happen with default, but handle -1 or 0
+                } else {
                     $consoleHistory = Get-Content -Path $transcriptPath -Raw -ErrorAction Stop
                 }
             } catch {
                 Write-Error "Save-ConsoleHistoryLog: Failed to read transcript file '$transcriptPath'. Error: $($_.Exception.Message)"
-                # Do not proceed to save if read failed
                 return
             }
         } else {
             Write-Warning "Save-ConsoleHistoryLog: Transcript file '$transcriptPath' not found."
-             # Do not proceed to save if file not found
             return
         }
 
-        # --- Save Content ---
         try {
             Set-Content -Path $LogFilePath -Value $consoleHistory -Encoding UTF8 -Force -ErrorAction Stop
             Write-Host "Save-ConsoleHistoryLog: Last $LinesFromTranscript lines (or available history) from transcript saved to '$LogFilePath'." -ForegroundColor Green
@@ -461,14 +474,22 @@ function Save-ConsoleHistoryLog {
         }
 
     } finally {
-         # --- Restart Transcript ---
-        if ($transcriptWasRunning) {
+        if ($transcriptWasActuallyRunning) {
             try {
-                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop
+                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
                 Write-Verbose "Save-ConsoleHistoryLog: Restarted transcript '$transcriptPath'."
             } catch {
                 Write-Error "Save-ConsoleHistoryLog: CRITICAL - Failed to restart transcript '$transcriptPath'! Manual restart might be needed. Error: $($_.Exception.Message)"
-                $Global:Console2Ai_TranscriptActive = $false # Mark as inactive
+                $Global:Console2Ai_TranscriptActive = $false
+            }
+        } elseif ($Global:Console2Ai_TranscriptActive -and -not $TRANSCRIPT) {
+            Write-Warning "Save-ConsoleHistoryLog: Transcript was expected to be active but wasn't. Attempting to restart."
+             try {
+                Start-Transcript -Path $transcriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
+                Write-Verbose "Save-ConsoleHistoryLog: Re-initialized transcript '$transcriptPath'."
+            } catch {
+                 Write-Error "Save-ConsoleHistoryLog: CRITICAL - Failed to re-initialize transcript '$transcriptPath'. Error: $($_.Exception.Message)"
+                 $Global:Console2Ai_TranscriptActive = $false
             }
         }
     }
@@ -479,7 +500,6 @@ function Save-ConsoleHistoryLog {
 Write-Verbose "Console2Ai: Initializing..."
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# 1. Ensure Base Transcript Directory Exists
 $baseDir = $Global:Console2Ai_TranscriptBaseDir
 if (-not (Test-Path -Path $baseDir -PathType Container)) {
     Write-Verbose "Console2Ai: Transcript base directory '$baseDir' does not exist. Attempting to create."
@@ -488,28 +508,26 @@ if (-not (Test-Path -Path $baseDir -PathType Container)) {
         Write-Verbose "Console2Ai: Created transcript base directory '$baseDir'."
     } catch {
         Write-Error "Console2Ai: Failed to create transcript base directory '$baseDir'. Transcript functionality disabled. Error: $($_.Exception.Message)"
-        # Do not proceed with transcript start if base dir fails
-        return # Stop further initialization related to transcripts
+        return
     }
 }
 
-# 2. Run Transcript Cleanup
-Invoke-Console2AiTranscriptCleanup -ErrorAction SilentlyContinue # Log errors internally
+Invoke-Console2AiTranscriptCleanup -ErrorAction SilentlyContinue
 
-# 3. Start New Transcript for this Session
 try {
     $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
     $uniqueFilename = "Console2Ai_Transcript_${timestamp}_PID$($PID).txt"
     $Global:Console2Ai_CurrentTranscriptPath = Join-Path $baseDir $uniqueFilename
 
-    Start-Transcript -Path $Global:Console2Ai_CurrentTranscriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop
+    # Suppress PowerShell's native "Transcript started..." message
+    Start-Transcript -Path $Global:Console2Ai_CurrentTranscriptPath -Append -IncludeInvocationHeader -Force -ErrorAction Stop | Out-Null
     $Global:Console2Ai_TranscriptActive = $true
-    Write-Host "Console2Ai: Transcript started for this session: $($Global:Console2Ai_CurrentTranscriptPath)" -ForegroundColor Cyan
+    Write-Host "Console2Ai: Transcript active for this session. Log: $($Global:Console2Ai_CurrentTranscriptPath)" -ForegroundColor Cyan
     Write-Verbose "Console2Ai: Transcript active flag set to true."
 
 } catch {
     Write-Error "Console2Ai: Failed to start transcript '$($Global:Console2Ai_CurrentTranscriptPath)'. AI context will be unavailable. Error: $($_.Exception.Message)"
-    $Global:Console2Ai_CurrentTranscriptPath = $null # Ensure path is null if start failed
+    $Global:Console2Ai_CurrentTranscriptPath = $null
     $Global:Console2Ai_TranscriptActive = $false
 }
 
@@ -519,7 +537,6 @@ try {
 try {
     Write-Verbose "Console2Ai: Attempting to set PSReadLine key handlers..."
 
-    # --- Alt+C: AI Command Suggestion Hotkey ---
     Set-PSReadLineKeyHandler -Chord "alt+c" -ScriptBlock {
         param($key, $arg)
         $cmdLineStr = $null; $cursor = $null;
@@ -527,46 +544,36 @@ try {
 
         $linesFromTranscript = $Global:Console2Ai_DefaultLinesFromTranscriptForHotkey
         $userPromptForAI = if ($null -ne $cmdLineStr) { $cmdLineStr.Trim() } else { "" }
-        $lC = 0 # Declare $lC for TryParse [ref]
+        $lC = 0
 
-        # Parse input like "<num_lines> <prompt>" or just "<num_lines>"
         if (-not [string]::IsNullOrWhiteSpace($cmdLineStr)) {
-            if ($cmdLineStr -match '^(\d{1,5})\s+(.+)$') { # Number followed by text (increased max lines)
+            if ($cmdLineStr -match '^(\d{1,5})\s+(.+)$') {
                 if ([int]::TryParse($matches[1],[ref]$lC) -and ($lC -gt 0 -and $lC -lt 100000)) {
                     $linesFromTranscript = $lC; $userPromptForAI = $matches[2].Trim()
                     Write-Verbose "Console2Ai (Alt+C): Parsed $linesFromTranscript lines from transcript, prompt: '$userPromptForAI'"
                 } else { Write-Verbose "Console2Ai (Alt+C): Invalid num in '$($matches[1])'. Using default lines."}
-            } elseif ($cmdLineStr -match '^\d{1,5}$') { # Only a number
+            } elseif ($cmdLineStr -match '^\d{1,5}$') {
                 if ([int]::TryParse($cmdLineStr,[ref]$lC) -and ($lC -gt 0 -and $lC -lt 100000)) {
                     $linesFromTranscript = $lC; $userPromptForAI = "User provided only line count, analyze history for a command."
                     Write-Verbose "Console2Ai (Alt+C): Parsed $linesFromTranscript lines from transcript, default prompt."
                 } else { Write-Verbose "Console2Ai (Alt+C): Invalid num '$cmdLineStr'. Using default lines."}
             }
-            # If neither pattern matched, $userPromptForAI remains the full $cmdLineStr
         }
 
         if ([string]::IsNullOrWhiteSpace($userPromptForAI)) { $userPromptForAI = "User did not provide a specific prompt, analyze history for a command." }
 
-        # Call the main function (handles status messages, transcript stop/start, AI call)
         $aiSuggestion = Invoke-AIConsoleHelp -LinesFromTranscript $linesFromTranscript -UserPrompt $userPromptForAI -ErrorAction SilentlyContinue
 
-        # Check if we have a meaningful result (Invoke-AIConsoleHelp handles restoring the line)
         if ($null -ne $aiSuggestion -and $aiSuggestion -notlike "ERROR:*") {
-             # Clear the original prompt line that was restored by Invoke-AIConsoleHelp
              [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-             # Insert the AI suggestion
              [Microsoft.PowerShell.PSConsoleReadLine]::Insert($aiSuggestion)
         } elseif ($aiSuggestion -like "ERROR:*") {
-            # Clear the original prompt line that was restored by Invoke-AIConsoleHelp
             [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-            # Insert error message
             $errorMessage = "❌ Console2Ai (Cmd) Error: $aiSuggestion"
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert($errorMessage)
         }
-        # If $aiSuggestion is null or empty (unexpected), the original line remains.
     }
 
-    # --- Alt+S: AI Conversation Mode Hotkey ---
     Set-PSReadLineKeyHandler -Chord "alt+s" -ScriptBlock {
         param($key, $arg)
 
@@ -575,37 +582,32 @@ try {
 
         $linesFromTranscript = $Global:Console2Ai_DefaultLinesFromTranscriptForHotkey
         $userPromptForAI = if ($null -ne $commandLineStringFromRef) { $commandLineStringFromRef.Trim() } else { "" }
-        $lC = 0 # Declare $lC for TryParse [ref]
+        $lC = 0
 
-        # Parse input like "<num_lines> <prompt>" or just "<num_lines>"
         if (-not [string]::IsNullOrWhiteSpace($commandLineStringFromRef)) {
-            if ($commandLineStringFromRef -match '^(\d{1,5})\s+(.+)$') { # Number followed by text
+            if ($commandLineStringFromRef -match '^(\d{1,5})\s+(.+)$') {
                 if ([int]::TryParse($matches[1], [ref]$lC) -and ($lC -gt 0 -and $lC -lt 100000) ) {
                     $linesFromTranscript = $lC; $userPromptForAI = $matches[2].Trim()
                     Write-Verbose "Console2Ai (Alt+S): Parsed $linesFromTranscript lines from transcript, prompt: '$userPromptForAI'"
                 } else { Write-Verbose "Console2Ai (Alt+S): Invalid num in '$($matches[1])'. Using default lines."}
-            } elseif ($commandLineStringFromRef -match '^\d{1,5}$') { # Only a number
+            } elseif ($commandLineStringFromRef -match '^\d{1,5}$') {
                 if ([int]::TryParse($commandLineStringFromRef, [ref]$lC) -and ($lC -gt 0 -and $lC -lt 100000) ) {
                     $linesFromTranscript = $lC; $userPromptForAI = "User provided only line count. Please analyze history and respond generally."
                     Write-Verbose "Console2Ai (Alt+S): Parsed $linesFromTranscript lines from transcript, default prompt."
                 } else { Write-Verbose "Console2Ai (Alt+S): Invalid num '$commandLineStringFromRef'. Using default lines."}
             }
-             # If neither pattern matched, $userPromptForAI remains the full $commandLineStringFromRef
         }
 
         if ([string]::IsNullOrWhiteSpace($userPromptForAI)) { $userPromptForAI = "User's query is empty. Please analyze history and provide general assistance." }
 
-        # Escape single quotes in the user query for the command string
         $escapedUserQuery = $userPromptForAI.Replace("'", "''")
-        # Construct the command to execute Invoke-Console2AiConversation
         $commandToExecute = "Invoke-Console2AiConversation -UserQuery '$escapedUserQuery' -LinesFromTranscript $linesFromTranscript"
 
         Write-Verbose "Console2Ai Hotkey (Alt+S): Inserting command: $commandToExecute"
 
-        # Replace the current line with the command and execute it
         [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
         [Microsoft.PowerShell.PSConsoleReadLine]::Insert($commandToExecute)
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine() # Execute the inserted command
+        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
     }
 
     Write-Verbose "Console2Ai: Hotkeys Alt+C (Command) and Alt+S (Conversation) registered successfully."
