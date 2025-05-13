@@ -57,6 +57,11 @@ function Invoke-Console2AiTranscriptCleanup {
             $logFile = $null
         }
     }
+
+    if ($null -ne $logFile) {
+        Clear-Content -Path $logFile -ErrorAction SilentlyContinue # Overwrite/clear existing log at the start of the session
+    }
+
     $cutoffDate = (Get-Date).AddDays(-$maxDays)
     Write-Verbose "Console2Ai: Cleaning transcripts older than $cutoffDate in '$baseDir'."
     try {
