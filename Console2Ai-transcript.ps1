@@ -1,6 +1,6 @@
 #region Header and Configuration
 # Script: Console2Ai.ps1
-# Version: 3.5 (Production Ready - Refined removal of last Invoke-Console2AiConversation line from Alt+S history)
+# Version: 3.7 (Production Ready - Further refined removal of Invoke-Console2AiConversation line and its output from Alt+S history)
 # Author: [Your Name/Handle Here]
 # Description: Provides functions to capture console history via Start-Transcript
 #              and send it to an AI for assistance (command or conversation mode).
@@ -131,8 +131,8 @@ function Invoke-AIConsoleHelp {
                     Write-Verbose "Invoke-AIConsoleHelp: Reading last $LinesFromTranscript lines from '$transcriptPath'."
                     $fileContentLines = Get-Content -Path $transcriptPath -ErrorAction Stop
                     $totalLinesInFile = $fileContentLines.Count
-                    $startLineIndex = [Math]::Max(0, $totalLinesInFile - $LinesFromTranscript)
-                    $consoleHistory = ($fileContentLines[$startLineIndex..($totalLinesInFile -1)]) -join [Environment]::NewLine
+                    $startLineIndexInFile = [Math]::Max(0, $totalLinesInFile - $LinesFromTranscript)
+                    $consoleHistory = ($fileContentLines[$startLineIndexInFile..($totalLinesInFile -1)]) -join [Environment]::NewLine
                 } else {
                     Write-Verbose "Invoke-AIConsoleHelp: Reading entire transcript '$transcriptPath'."
                     $consoleHistory = Get-Content -Path $transcriptPath -Raw -ErrorAction Stop
@@ -207,10 +207,10 @@ function Invoke-AIConsoleHelp {
   Initiates a conversational AI session using console transcript history as context.
 .DESCRIPTION
   This function is called by the Alt+S hotkey. It temporarily stops transcription,
-  gathers the user's query and transcript history (removing its own invocation line from the history),
-  formats a prompt for conversational AI, displays feedback, and then launches the AI executable,
-  piping the prompt to its standard input. The AI executable takes over the console.
-  Transcription is restarted when the AI exits.
+  gathers the user's query and transcript history (removing its own invocation line and
+  any of its direct output from the history segment), formats a prompt for conversational AI,
+  displays feedback, and then launches the AI executable, piping the prompt to its standard input.
+  The AI executable takes over the console. Transcription is restarted when the AI exits.
 .PARAMETER UserQuery
   The query typed by the user. Can also be specified as -UQ.
 .PARAMETER LinesFromTranscript
@@ -218,7 +218,8 @@ function Invoke-AIConsoleHelp {
 .NOTES
   This function handles transcript stop/start around the AI execution.
   It attempts to remove the last command line from the history if it corresponds
-  to this function's own invocation, providing cleaner context to the AI.
+  to this function's own invocation (and any subsequent output within the loaded history segment),
+  providing cleaner context to the AI.
 #>
 function Invoke-Console2AiConversation {
     [CmdletBinding()]
@@ -260,72 +261,65 @@ function Invoke-Console2AiConversation {
                     Write-Verbose "Invoke-Console2AiConversation: Reading last $LinesFromTranscript lines from '$transcriptPath'."
                     $fileContentLines = Get-Content -Path $transcriptPath -ErrorAction Stop
                     $totalLinesInFile = $fileContentLines.Count
-                    $startLineIndex = [Math]::Max(0, $totalLinesInFile - $LinesFromTranscript)
-                    # Read lines into an array first for easier manipulation if needed, then join
-                    $historyLines = $fileContentLines[$startLineIndex..($totalLinesInFile -1)]
-                    $consoleHistory = $historyLines -join [Environment]::NewLine
+                    $startLineIndexInFile = [Math]::Max(0, $totalLinesInFile - $LinesFromTranscript)
+                    $consoleHistory = ($fileContentLines[$startLineIndexInFile..($totalLinesInFile -1)]) -join [Environment]::NewLine
                 } else {
                     Write-Verbose "Invoke-Console2AiConversation: Reading entire transcript '$transcriptPath'."
                     $consoleHistory = Get-Content -Path $transcriptPath -Raw -ErrorAction Stop
                 }
-                 Write-Verbose "Invoke-Console2AiConversation: Read $($consoleHistory.Length) characters from transcript."
+                 Write-Verbose "Invoke-Console2AiConversation: Read $($consoleHistory.Length) characters from transcript for processing."
 
-                 # --- NEW v3.5: Remove the last occurrence of the function call line ---
-                 $functionCallString = 'Invoke-Console2AiConversation'
-                 # Use LastIndexOf on the raw string content
-                 $lastOccurrenceIndex = $consoleHistory.LastIndexOf($functionCallString, [System.StringComparison]::Ordinal)
+                # --- CORRECTED v3.7: Remove the last occurrence of the function call line and subsequent output ---
+                $functionCallString = 'Invoke-Console2AiConversation'
+                $originalHistoryLength = $consoleHistory.Length # For verbose logging
+                $lastOccurrenceIndexInSegment = $consoleHistory.LastIndexOf($functionCallString, [System.StringComparison]::Ordinal)
 
-                 if ($lastOccurrenceIndex -ge 0) {
-                     # Find the beginning of the line where the last occurrence was found
-                     # Start searching backwards from the character *before* the found string
-                     $startOfLineIndex = $consoleHistory.LastIndexOf([Environment]::NewLine, $lastOccurrenceIndex - 1, [System.StringComparison]::Ordinal)
+                if ($lastOccurrenceIndexInSegment -ge 0) {
+                    # Find the start of the line containing the last occurrence within the current $consoleHistory segment
+                    $lineStartIndexInSegment = $consoleHistory.LastIndexOf([Environment]::NewLine, $lastOccurrenceIndexInSegment - 1, [System.StringComparison]::Ordinal)
+                    if ($lineStartIndexInSegment -lt 0) { # Keyword is on the first line of the $consoleHistory segment
+                        $lineStartIndexInSegment = 0
+                    } else { # Keyword is on a subsequent line
+                        $lineStartIndexInSegment += [Environment]::NewLine.Length # Move index to the actual start of the line's content
+                    }
 
-                     if ($startOfLineIndex -lt 0) {
-                         # If no newline before it, it must be on the first line of the $consoleHistory chunk
-                         $startOfLineIndex = 0
-                     } else {
-                         # Move past the newline character(s) itself to get the actual start of the line content
-                         $startOfLineIndex += [Environment]::NewLine.Length
-                     }
+                    # Extract the line for verification (from its start to the next newline or end of string)
+                    $lineEndIndexForVerification = $consoleHistory.IndexOf([Environment]::NewLine, $lineStartIndexInSegment, [System.StringComparison]::Ordinal)
+                    $lineToVerify = ""
+                    if ($lineEndIndexForVerification -lt 0) { # The keyword line is the very last line in $consoleHistory segment
+                        $lineToVerify = $consoleHistory.Substring($lineStartIndexInSegment)
+                    } else { # The keyword line is followed by other lines in the segment
+                        $lineToVerify = $consoleHistory.Substring($lineStartIndexInSegment, $lineEndIndexForVerification - $lineStartIndexInSegment)
+                    }
+                    $lineToVerify = $lineToVerify.TrimEnd() # Clean for matching
 
-                     # Extract the line for verification
-                     $endOfLineIndex = $consoleHistory.IndexOf([Environment]::NewLine, $startOfLineIndex, [System.StringComparison]::Ordinal)
-                     if ($endOfLineIndex -lt 0) {
-                         # It's the very last line in the history string
-                         $potentialCommandPromptLine = $consoleHistory.Substring($startOfLineIndex)
-                     } else {
-                         $potentialCommandPromptLine = $consoleHistory.Substring($startOfLineIndex, $endOfLineIndex - $startOfLineIndex)
-                     }
-                     $potentialCommandPromptLine = $potentialCommandPromptLine.TrimEnd() # Trim trailing whitespace/CR
+                    # CORRECTED Regex for prompt:
+                    # ^(\s*PS>|\s*PS\s+[^>]*?>|\s*>>|\s*>)
+                    #   \s*PS>                     - Matches "PS>"
+                    #   \s*PS\s+[^>]*?>           - Matches "PS C:\Path>" (PowerShell prompt with path)
+                    #   \s*>>                      - Matches ">>" (continuation prompt)
+                    #   \s*>                       - Matches ">" (generic simple prompt)
+                    $promptRegex = '^(\s*PS>|\s*PS\s+[^>]*?>|\s*>>|\s*>)'
+                    if ($lineToVerify -match ($promptRegex + '\s*' + [regex]::Escape($functionCallString))) {
+                        Write-Verbose "Invoke-Console2AiConversation: Found last occurrence of '$functionCallString' on what looks like a command line (`'$lineToVerify`')."
+                        Write-Verbose "Invoke-Console2AiConversation: Removing this line and all subsequent content in the current history segment."
+                        
+                        # Truncate from the start of this identified line
+                        $consoleHistory = $consoleHistory.Substring(0, $lineStartIndexInSegment).TrimEnd()
+                        Write-Verbose "Invoke-Console2AiConversation: History truncated. New length: $($consoleHistory.Length). Original: $originalHistoryLength."
+                    } else {
+                        Write-Verbose "Invoke-Console2AiConversation: Found last occurrence of '$functionCallString', but the line (`'$lineToVerify`') didn't match expected command prompt pattern. Not removing."
+                        Write-Verbose "Invoke-Console2AiConversation: Line did not match regex: '$($promptRegex + '\s*' + [regex]::Escape($functionCallString))'"
+                    }
+                } else {
+                    Write-Verbose "Invoke-Console2AiConversation: Did not find '$functionCallString' in the current history segment."
+                }
+                # --- END CORRECTED v3.7 SECTION ---
 
-                     # Heuristic check: Does the line start with something like "PS C:\>" or "> " and contain the function call?
-                     # This makes the removal safer. Adjust regex if prompts differ significantly.
-                     # Regex Breakdown:
-                     # ^                 - Start of the string (line)
-                     # (\s*PS\s.+?>      - Optional whitespace, 'PS', space, anything, '>' (common PS prompt)
-                     #  |                - OR
-                     #  \s*>)            - Optional whitespace, '>' (simpler prompt indicator)
-                     # \s*               - Optional whitespace after prompt
-                     # Invoke-Console... - The literal function name we expect
-                     if ($potentialCommandPromptLine -match ('^(\s*PS\s.+?>|\s*>)\s*' + [regex]::Escape($functionCallString))) {
-                         Write-Verbose "Invoke-Console2AiConversation: Found last occurrence of '$functionCallString' on what looks like a command line (`'$potentialCommandPromptLine`'). Truncating history."
-                         # Truncate *before* the start of that line
-                         $consoleHistory = $consoleHistory.Substring(0, $startOfLineIndex).TrimEnd()
-                         Write-Verbose "Invoke-Console2AiConversation: History truncated. New length: $($consoleHistory.Length)"
-                     } else {
-                         Write-Verbose "Invoke-Console2AiConversation: Found last occurrence of '$functionCallString', but the line (`'$potentialCommandPromptLine`') didn't match the expected command prompt pattern. Not truncating."
-                     }
-
-                 } else {
-                     Write-Verbose "Invoke-Console2AiConversation: Did not find '$functionCallString' in the recent history segment."
-                 }
-                 # --- END NEW v3.5 SECTION ---
-
-
-                 # Remove *remaining* transcript command headers from the history being sent
-                 $commandHeaderRegex = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?' # Multiline mode, optional CR, optional final newline
-                 $consoleHistory = $consoleHistory -replace $commandHeaderRegex, ''
-                 Write-Verbose "Invoke-Console2AiConversation: Removed remaining transcript command headers."
+                # Remove *remaining* transcript command headers from the history being sent
+                $commandHeaderRegex = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?'
+                $consoleHistory = $consoleHistory -replace $commandHeaderRegex, ''
+                Write-Verbose "Invoke-Console2AiConversation: Removed remaining transcript command headers."
 
             } catch {
                 Write-Error "Invoke-Console2AiConversation: Failed to read or process transcript file '$transcriptPath'. Error: $($_.Exception.Message)"
@@ -347,12 +341,11 @@ function Invoke-Console2AiConversation {
         Write-Verbose "Invoke-Console2AiConversation: Full prompt for AI (stdin, $($fullAIPromptForConversation.Length) chars): `n$($fullAIPromptForConversation.Substring(0, [Math]::Min($fullAIPromptForConversation.Length, 500)))..."
 
         Write-Host "--- Starting AI Conversation ($aiExecutable)... ---" -ForegroundColor DarkCyan
-        $PreviousOutputEncoding = $OutputEncoding # Store current $OutputEncoding
-        $OutputEncoding = [System.Text.Encoding]::UTF8 # Set for piping
-        $ConsoleOutputEncoding = [Console]::OutputEncoding # Store current Console encoding
-        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 # Set for external process output
+        $PreviousOutputEncoding = $OutputEncoding
+        $OutputEncoding = [System.Text.Encoding]::UTF8
+        $ConsoleOutputEncoding = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         try {
-            # Pipe the prompt to the AI executable's standard input
             $fullAIPromptForConversation | & $aiExecutable
             Write-Verbose "Invoke-Console2AiConversation: AI executable exited."
             Write-Host "--- AI Conversation Ended ---" -ForegroundColor DarkCyan
@@ -361,7 +354,6 @@ function Invoke-Console2AiConversation {
             Write-Error ($_.Exception.Message)
             Write-Host "--- AI session failed or ended with an error. ---" -ForegroundColor Red
         } finally {
-            # Restore original encodings
             $OutputEncoding = $PreviousOutputEncoding
             [Console]::OutputEncoding = $ConsoleOutputEncoding
         }
