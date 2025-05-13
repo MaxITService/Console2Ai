@@ -53,7 +53,8 @@ Before you begin, ensure you have the following:
 
 1.  **PowerShell:** Version 5.1 or higher. PowerShell 7+ is recommended for the best `PSReadLine` experience.
 2.  **`aichat` by sigoden:** This is the AI chat client Console2Ai uses.
-    -   **Installation:** Visit the [`aichat` GitHub releases page](https://github.com/sigoden/aichat/releases) and download the appropriate binary for your operating system (e.g., `aichat-*-windows-x86_64.exe`).
+    -   **Installation:** Visit the [`aichat` GitHub releases page](https://github.com/sigoden/aichat/releases) and download the appropriate binary for your operating system (e.g., `aichat-*--x86_64-pc-windows-msvc.zip
+`).
     -   **Link to repo if you need help:** [https://github.com/sigoden/aichat](https://github.com/sigoden/aichat)
 
 ## 🛠️ Installation & Configuration
