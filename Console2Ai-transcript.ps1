@@ -1,6 +1,6 @@
 #region Header and Configuration
 # Script: Console2Ai.ps1
-# Version: 3.4 (Production Ready - Remove last Invoke-Console2AiConversation block from Alt+S history)
+# Version: 3.5 (Production Ready - Refined removal of last Invoke-Console2AiConversation line from Alt+S history)
 # Author: [Your Name/Handle Here]
 # Description: Provides functions to capture console history via Start-Transcript
 #              and send it to an AI for assistance (command or conversation mode).
@@ -207,7 +207,7 @@ function Invoke-AIConsoleHelp {
   Initiates a conversational AI session using console transcript history as context.
 .DESCRIPTION
   This function is called by the Alt+S hotkey. It temporarily stops transcription,
-  gathers the user's query and transcript history (removing its own invocation from the history),
+  gathers the user's query and transcript history (removing its own invocation line from the history),
   formats a prompt for conversational AI, displays feedback, and then launches the AI executable,
   piping the prompt to its standard input. The AI executable takes over the console.
   Transcription is restarted when the AI exits.
@@ -217,7 +217,7 @@ function Invoke-AIConsoleHelp {
   The number of console transcript lines from the end to include as context. Can also be specified as -LTQ.
 .NOTES
   This function handles transcript stop/start around the AI execution.
-  It attempts to remove the last command block from the history if it corresponds
+  It attempts to remove the last command line from the history if it corresponds
   to this function's own invocation, providing cleaner context to the AI.
 #>
 function Invoke-Console2AiConversation {
@@ -261,40 +261,66 @@ function Invoke-Console2AiConversation {
                     $fileContentLines = Get-Content -Path $transcriptPath -ErrorAction Stop
                     $totalLinesInFile = $fileContentLines.Count
                     $startLineIndex = [Math]::Max(0, $totalLinesInFile - $LinesFromTranscript)
-                    $consoleHistory = ($fileContentLines[$startLineIndex..($totalLinesInFile -1)]) -join [Environment]::NewLine
+                    # Read lines into an array first for easier manipulation if needed, then join
+                    $historyLines = $fileContentLines[$startLineIndex..($totalLinesInFile -1)]
+                    $consoleHistory = $historyLines -join [Environment]::NewLine
                 } else {
                     Write-Verbose "Invoke-Console2AiConversation: Reading entire transcript '$transcriptPath'."
                     $consoleHistory = Get-Content -Path $transcriptPath -Raw -ErrorAction Stop
                 }
                  Write-Verbose "Invoke-Console2AiConversation: Read $($consoleHistory.Length) characters from transcript."
 
-                 # --- NEW v3.4: Remove the last command block if it's this function's call ---
-                 $commandBlockHeaderPattern = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?' # Pattern for the header itself
-                 $matches = [regex]::Matches($consoleHistory, $commandBlockHeaderPattern)
+                 # --- NEW v3.5: Remove the last occurrence of the function call line ---
+                 $functionCallString = 'Invoke-Console2AiConversation'
+                 # Use LastIndexOf on the raw string content
+                 $lastOccurrenceIndex = $consoleHistory.LastIndexOf($functionCallString, [System.StringComparison]::Ordinal)
 
-                 if ($matches.Count -gt 0) {
-                     $lastMatch = $matches[$matches.Count - 1]
-                     # Find the text *after* the last header match
-                     $textAfterLastHeader = $consoleHistory.Substring($lastMatch.Index + $lastMatch.Length)
-                     # Find the first non-empty line of text after the header (should be the command)
-                     # Use -split and Where-Object to handle potential blank lines after header
-                     $firstLineAfterHeader = ($textAfterLastHeader -split '\r?\n' | Where-Object { $_ -match '\S' })[0]
+                 if ($lastOccurrenceIndex -ge 0) {
+                     # Find the beginning of the line where the last occurrence was found
+                     # Start searching backwards from the character *before* the found string
+                     $startOfLineIndex = $consoleHistory.LastIndexOf([Environment]::NewLine, $lastOccurrenceIndex - 1, [System.StringComparison]::Ordinal)
 
-                     # Check if the first line found contains the specific command name
-                     if (($null -ne $firstLineAfterHeader) -and ($firstLineAfterHeader -match 'Invoke-Console2AiConversation')) {
-                          Write-Verbose "Invoke-Console2AiConversation: Removing the last command block (current Invoke-Console2AiConversation call) from history."
-                          # Truncate the history *before* the start index of the last matched header
-                          $consoleHistory = $consoleHistory.Substring(0, $lastMatch.Index).TrimEnd()
-                          Write-Verbose "Invoke-Console2AiConversation: History trimmed. New length: $($consoleHistory.Length)"
+                     if ($startOfLineIndex -lt 0) {
+                         # If no newline before it, it must be on the first line of the $consoleHistory chunk
+                         $startOfLineIndex = 0
                      } else {
-                          Write-Verbose "Invoke-Console2AiConversation: Last command block header found, but the following command wasn't Invoke-Console2AiConversation. Not removing."
-                          if ($null -eq $firstLineAfterHeader) { Write-Verbose "Invoke-Console2AiConversation: Could not find command line after last header." }
-                          else { Write-Verbose "Invoke-Console2AiConversation: Command found was: '$firstLineAfterHeader'" }
+                         # Move past the newline character(s) itself to get the actual start of the line content
+                         $startOfLineIndex += [Environment]::NewLine.Length
                      }
+
+                     # Extract the line for verification
+                     $endOfLineIndex = $consoleHistory.IndexOf([Environment]::NewLine, $startOfLineIndex, [System.StringComparison]::Ordinal)
+                     if ($endOfLineIndex -lt 0) {
+                         # It's the very last line in the history string
+                         $potentialCommandPromptLine = $consoleHistory.Substring($startOfLineIndex)
+                     } else {
+                         $potentialCommandPromptLine = $consoleHistory.Substring($startOfLineIndex, $endOfLineIndex - $startOfLineIndex)
+                     }
+                     $potentialCommandPromptLine = $potentialCommandPromptLine.TrimEnd() # Trim trailing whitespace/CR
+
+                     # Heuristic check: Does the line start with something like "PS C:\>" or "> " and contain the function call?
+                     # This makes the removal safer. Adjust regex if prompts differ significantly.
+                     # Regex Breakdown:
+                     # ^                 - Start of the string (line)
+                     # (\s*PS\s.+?>      - Optional whitespace, 'PS', space, anything, '>' (common PS prompt)
+                     #  |                - OR
+                     #  \s*>)            - Optional whitespace, '>' (simpler prompt indicator)
+                     # \s*               - Optional whitespace after prompt
+                     # Invoke-Console... - The literal function name we expect
+                     if ($potentialCommandPromptLine -match ('^(\s*PS\s.+?>|\s*>)\s*' + [regex]::Escape($functionCallString))) {
+                         Write-Verbose "Invoke-Console2AiConversation: Found last occurrence of '$functionCallString' on what looks like a command line (`'$potentialCommandPromptLine`'). Truncating history."
+                         # Truncate *before* the start of that line
+                         $consoleHistory = $consoleHistory.Substring(0, $startOfLineIndex).TrimEnd()
+                         Write-Verbose "Invoke-Console2AiConversation: History truncated. New length: $($consoleHistory.Length)"
+                     } else {
+                         Write-Verbose "Invoke-Console2AiConversation: Found last occurrence of '$functionCallString', but the line (`'$potentialCommandPromptLine`') didn't match the expected command prompt pattern. Not truncating."
+                     }
+
                  } else {
-                     Write-Verbose "Invoke-Console2AiConversation: No command block headers found in the transcript history."
+                     Write-Verbose "Invoke-Console2AiConversation: Did not find '$functionCallString' in the recent history segment."
                  }
-                 # --- END NEW v3.4 SECTION ---
+                 # --- END NEW v3.5 SECTION ---
+
 
                  # Remove *remaining* transcript command headers from the history being sent
                  $commandHeaderRegex = '(?m)^\*+\r?\nCommand start time: \d+\r?\n\*+\r?\n?' # Multiline mode, optional CR, optional final newline
@@ -311,7 +337,7 @@ function Invoke-Console2AiConversation {
         }
 
         if ([string]::IsNullOrWhiteSpace($consoleHistory)) {
-             Write-Warning "Invoke-Console2AiConversation: No history captured (or only headers removed). AI might lack context."
+             Write-Warning "Invoke-Console2AiConversation: No history captured (or only headers/command removed). AI might lack context."
         }
 
         $linesCountForPrompt = if ($LinesFromTranscript -gt 0) { $LinesFromTranscript } else { "all available" }
