@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Hits](https://hits.sh/github.com/MaxITService/Console2Ai.svg?style=flat)](https://hits.sh/github.com/MaxITService/Console2Ai/)
 
-Console2Ai is a PowerShell script that captures your console screen buffer content and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
+Console2Ai is a PowerShell script that captures your console screen buffer (or [transcript in other version](https://github.com/MaxITService/Console2Ai/tree/transcript)) content and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
 
 ---
 
@@ -38,7 +38,7 @@ In short: **You get immediate, context-aware AI assistance, right when you need 
 ![Demo GIF](Promo/Gif_Demo.gif)
 
 
--   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 180 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output. You are unfortunately limited to what you see on screen. To capture more, you need to: in settings of your PowerShell profile, disable "Scroll to input when typing" and make window as big as possible and use Ctrl + Mousewheel to change scaling, the more you see, the more will be captured. Or, alternatively, you can use another version of this scritp, that uses transcipt, download it here. (the file name is Console2Ai-transcript.ps1)
+-   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 180 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output. You are unfortunately limited to what you see on screen. To capture more, you need to: in settings of your PowerShell profile, disable "Scroll to input when typing" and make window as big as possible and use Ctrl + Mousewheel to change scaling, the more you see, the more will be captured. Or, alternatively, you can use another version of this script that uses transcript. [Download it here.](https://github.com/MaxITService/Console2Ai/tree/transcript) (the file name is Console2Ai-transcript.ps1)
 -   **Alt+C Hotkey:** Quick access to AI command suggestion with a simple keyboard shortcut. (What you typed as prompt will be REPLACED with ready to press enter command)
 -   **Alt+S Hotkey:** Instantly start a conversational AI session with your console history and current query.
 -   **Context Control:** Specify how many lines of console history (1-1999) to include in the AI prompt. Simply type a number before prompt and let it go! like "50 explain the last few commands and suggest an optimization" - number will be automatically picked up and parsed into console history line count.
@@ -49,10 +49,7 @@ Aichat is free and open source application.
 
 ## 📋 Prerequisites
 
-Before you begin, ensure you have the following:
-
-1.  **PowerShell:** Version 5.1 or higher. PowerShell 7+ is recommended for the best `PSReadLine` experience.
-2.  **`aichat` by sigoden:** This is the AI chat client Console2Ai uses.
+Quick recap: you will need this script loaded in powershell, and backend app "aichat.exe" which uses the AI API (which you will also need, this is like a key to your AI service). So you will have to install both - and guide below will explain every step that you need to take, and if somethign is not easy to understand, ask me in discussion!
     -   **Installation:** Visit the [`aichat` GitHub releases page](https://github.com/sigoden/aichat/releases) and download the appropriate binary for your operating system (e.g., `aichat-*--x86_64-pc-windows-msvc.zip
 `).
     -   **Link to repo if you need help:** [https://github.com/sigoden/aichat](https://github.com/sigoden/aichat)
@@ -114,7 +111,8 @@ if (-not ($SystemPath -split ';' -contains $AichatPath)) {
         - type: openai-compatible
           name: openrouter
           api_base: https://openrouter.ai/api/v1
-          api_key: sk-or-v1-a96_YOUR_API_KEY
+          api_key: sk-or-v1-a96_YOUR_API_KEY_PASTE_IT_HERE_AND_KEEP_IT_SECRET
+        
         
 Test `aichat` from your terminal after configuration:
 
