@@ -260,6 +260,8 @@ Check out my Free Extension for Web AI chats to quickly reuse your prompts:
 [OneClickPrompts on Chrome Web Store](https://chromewebstore.google.com/detail/oneclickprompts/iiofmimaakhhoiablomgcjpilebnndbf?authuser=1)
 [it is open source](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text)
 
+---
+
 [The PowerShell Ping Plotter](https://github.com/MaxITService/Ping-Plotter-PS51)
 
 ## Warranties
