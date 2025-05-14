@@ -4,35 +4,9 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Hits](https://hits.sh/github.com/MaxITService/Console2Ai-transcript.svg?style=flat)](https://hits.sh/github.com/MaxITService/Console2Ai-transcript/)
 
-Console2Ai-transcript is a PowerShell script (currently in BETA) that captures your console history using PowerShell's transcript functionality and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
+Console2Ai-transcript is a PowerShell script (currently in BETA) that captures your console history using PowerShell's transcript functionality and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing. Transcriptas are stored in `%USERPROFILE%\Console2Ai\Transcripts` directory. Warning! Make sure you know how [Start-Transcript](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.host/start-transcript?view=powershell-7.5) works. It saves your console history to text file with session name and this file stores everything you typed in console - including secrets! This script cleans old files, but you must understand the risks! Store file in safe location(by default it is in your user profile) If you want version that does not store transcript history, there is one that uses only what you see on screen[Console2Ai](https://github.com/MaxITService/Console2Ai).
 
 ---
-
-# ⚠️ Important Note
-
-> *— But I’ve seen products like **Warp**, **Codex CLI**, **Terminal Beta**, **Azure AIShell**, or **VS Code GitHub Copilot** do exactly the same!*
-
-**There are similarities, but it's Not Exactly like this.** I’ve checked all these products, and technically, **none of them work with your past console transcript history**—not a single one!
-
-Let me explain:  
-If you’re using Windows Terminal and suddenly realize you want to use an AI tool, here’s the catch:  
-With those other products, if you didn’t start them at the beginning of your session, you have to manually “spin them up” first (except for warp, it has a button for it). Their seamless experience only works if you planned to use them from the start.
-
-**This script is different:**  
-- **You don’t need to prepare or restart your session - in any PowerShell window where you can load your profile, you can use your past context AFTER you realized you need it.**
-- **Just press a single key and it starts supplying transcript context to AI backend tool - it's the script's single purpose.**  
-- **No need for large agent system prompts, thus super cheap**  
-- **No need to feed unneeded interactions to inference - only after you realized you need them, on a portion you need them**
-- **Starts at the speed of inference, super fast.**
-- **Price is your API token usage. (Hello warp)**
-- **FOSS**
-- **Windows terminal experience if you like it**
-- **BETA: This transcript version offers improved history capture over the original screen buffer version**
-
-In short: **You get immediate, context-aware AI assistance, right when you need it—even if you decide to use it in the middle of your work. No setup, no waiting, no planning ahead.**
-
----
-
 
 ## Core Functionality
 
@@ -44,30 +18,28 @@ In short: **You get immediate, context-aware AI assistance, right when you need 
 -   **Alt+S Hotkey:** Instantly start a conversational AI session with your console history and current query.
 -   **Context Control:** Specify how many lines of console history (1-1999) to include in the AI prompt. Simply type a number before prompt and let it go! like "50 explain the last few commands and suggest an optimization" - number will be automatically picked up and parsed into console history line count.
 -   **Session Logging:** Save your recent console lines to a text file for reference.
+-   **Transcript Cleanup:** Automatically clean up old transcripts to save space. Transcripts older than 2 days are deleted if not used.
 
 When you press Alt+C, the script analyzes your current input line, captures the specified number of transcript history lines, and sends everything to `aichat`. The AI response then replaces your current input line in the console.
 Aichat is free and open source application.
 
 ## 📋 Prerequisites
 
-Before you begin, ensure you have the following:
-
-1.  **PowerShell:** Version 5.1 or higher. PowerShell 7+ is recommended for the best `PSReadLine` experience.
-2.  **`aichat` by sigoden:** This is the AI chat client Console2Ai uses.
+Quick recap: you will need this script loaded in powershell, and backend app "aichat.exe" which uses the AI API (which you will also need, this is like a key to your AI service). So you will have to install both - and guide below will explain every step that you need to take, and if somethign is not easy to understand, ask me in discussion!
     -   **Installation:** Visit the [`aichat` GitHub releases page](https://github.com/sigoden/aichat/releases) and download the appropriate binary for your operating system (e.g., `aichat-*--x86_64-pc-windows-msvc.zip
 `).
     -   **Link to repo if you need help:** [https://github.com/sigoden/aichat](https://github.com/sigoden/aichat)
 
 ## 🛠️ Installation & Configuration
 
-Follow these steps to get Console2Ai up and running:
+Follow these steps to get Console2Ai-transcript up and running:
 
 1.  **Install and Configure `aichat`**
     a.  **Download `aichat`:**
         Grab the latest release from [here](https://github.com/sigoden/aichat/releases). For Windows, you'll likely want the `...windows-x86_64.exe` file.
 
     b.  **Add `aichat` to your PATH:**
-        For Console2Ai to find `aichat.exe`, it needs to be in your system's PATH.
+        For Console2Ai-transcript to find `aichat.exe`, it needs to be in your system's PATH.
         -   Create a dedicated folder for CLI tools, e.g., `C:\Tools\bin`
         -   Rename the downloaded `aichat` executable to `aichat.exe` and move it to this folder.
         -   Add this folder to your PATH. You can do this via PowerShell:
@@ -86,7 +58,6 @@ if (-not ($CurrentUserPath -split ';' -contains $AichatPath)) {
 ```
 
 **For System PATH (requires Admin, affects all users):**
-
 
 
 ```powershell
@@ -115,7 +86,7 @@ if (-not ($SystemPath -split ';' -contains $AichatPath)) {
         - type: openai-compatible
           name: openrouter
           api_base: https://openrouter.ai/api/v1
-          api_key: sk-or-v1-a96_YOUR_API_KEY
+          api_key: sk-or-v1-a96_YOUR_API_KEY_PASTE_IT_HERE_AND_KEEP_IT_SECRET
         
 Test `aichat` from your terminal after configuration:
 
@@ -141,10 +112,10 @@ This will make sure the base application for this script is working.
 
 ## 🚀 How to Use Console2Ai-transcript (BETA)
 
-Once installed, you have a few ways to interact with Console2Ai:
+Once installed, you have a few ways to interact with Console2Ai-transcript:
 
 1.  **The `Alt+C` Hotkey (Command Suggestion)** 🔥
-    This is the quickest way to get AI assistance for command suggestions!
+    This will replace your command with AI's suggestion after a while
 
     a.  **Standard Query:**
         Type your question, command fragment, or error message into the PowerShell prompt.
@@ -244,7 +215,7 @@ You can modify `Console2Ai-transcript.ps1` directly to change:
 -   Ensure no other Alt+C binding is overriding it.
 -   Verify that transcription is working properly by checking the transcript directory.
 
-### AI Errors (❌ Console2Ai AI Error...)
+### AI Errors (❌ Console2Ai-transcript AI Error...)
 
 -   Verify `aichat.exe` is in your PATH and working (`aichat --version`).
 -   Check your `aichat` configuration (`%APPDATA%\aichat\config.yaml`). Is the model correct? Is your API key valid and correctly configured (e.g., `OPENAI_API_KEY` environment variable)?
@@ -269,4 +240,8 @@ Check out my Free Extension for Web AI chats to quickly reuse your prompts:
 
 [it is open source](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text)
 
-https://www.reddit.com/user/lvvy/ reddit
+
+
+## Warranties
+
+USE AT YOUR OWN RISK! No warranties! If something does not work or you need help, please contact me here, and I will try to help. 
