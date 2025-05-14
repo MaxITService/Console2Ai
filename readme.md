@@ -38,7 +38,7 @@ In short: **You get immediate, context-aware AI assistance, right when you need 
 ![Demo GIF](Promo/Gif_Demo.gif)
 
 
--   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 180 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output. You are unfortunately limited to what you see on screen. To capture more, you need to: in settings of your PowerShell profile, disable "Scroll to input when typing" and make window as big as possible and use Ctrl + Mousewheel to change scaling, the more you see, the more will be captured.
+-   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 180 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output. You are unfortunately limited to what you see on screen. To capture more, you need to: in settings of your PowerShell profile, disable "Scroll to input when typing" and make window as big as possible and use Ctrl + Mousewheel to change scaling, the more you see, the more will be captured. Or, alternatively, you can use another version of this scritp, that uses transcipt, download it here. (the file name is Console2Ai-transcript.ps1)
 -   **Alt+C Hotkey:** Quick access to AI command suggestion with a simple keyboard shortcut. (What you typed as prompt will be REPLACED with ready to press enter command)
 -   **Alt+S Hotkey:** Instantly start a conversational AI session with your console history and current query.
 -   **Context Control:** Specify how many lines of console history (1-1999) to include in the AI prompt. Simply type a number before prompt and let it go! like "50 explain the last few commands and suggest an optimization" - number will be automatically picked up and parsed into console history line count.
@@ -143,7 +143,7 @@ This will make sure the base application for this script is working.
 Once installed, you have a few ways to interact with Console2Ai:
 
 1.  **The `Alt+C` Hotkey (Command Suggestion)** 🔥
-    This is the quickest way to get AI assistance for command suggestions!
+    This will replace your command with AI's suggestion after a while
 
     a.  **Standard Query:**
         Type your question, command fragment, or error message into the PowerShell prompt.
@@ -263,4 +263,7 @@ Check out my Free Extension for Web AI chats to quickly reuse your prompts:
 
 [it is open source](https://github.com/MaxITService/ChatGPT-Quick-Buttons-for-your-text)
 
-https://www.reddit.com/user/lvvy/ reddit
+
+## Warranties
+
+USE AT YOUR OWN RISK! No warranties! If something does not work or you need help, please contact me here, and I will try to help. 
