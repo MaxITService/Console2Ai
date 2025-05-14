@@ -1,10 +1,10 @@
-# Console2Ai - PowerShell AI Assistant
+# Console2Ai-transcript - PowerShell AI Assistant (BETA)
 
 [![PowerShell Version](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%207%2B-blue.svg)](https://docs.microsoft.com/en-us/powershell/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Hits](https://hits.sh/github.com/MaxITService/Console2Ai.svg?style=flat)](https://hits.sh/github.com/MaxITService/Console2Ai/)
+[![Hits](https://hits.sh/github.com/MaxITService/Console2Ai-transcript.svg?style=flat)](https://hits.sh/github.com/MaxITService/Console2Ai-transcript/)
 
-Console2Ai is a PowerShell script that captures your console screen buffer content and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
+Console2Ai-transcript is a PowerShell script (currently in BETA) that captures your console history using PowerShell's transcript functionality and sends it to an AI assistant. It uses [`aichat`](https://github.com/sigoden/aichat) as the backend for AI processing.
 
 ---
 
@@ -12,21 +12,22 @@ Console2Ai is a PowerShell script that captures your console screen buffer conte
 
 > *— But I’ve seen products like **Warp**, **Codex CLI**, **Terminal Beta**, **Azure AIShell**, or **VS Code GitHub Copilot** do exactly the same!*
 
-**There are similarities, but it's Not Exactly like this.** I’ve checked all these products, and technically, **none of them work with your past console screen buffer**—not a single one!
+**There are similarities, but it's Not Exactly like this.** I’ve checked all these products, and technically, **none of them work with your past console transcript history**—not a single one!
 
 Let me explain:  
 If you’re using Windows Terminal and suddenly realize you want to use an AI tool, here’s the catch:  
 With those other products, if you didn’t start them at the beginning of your session, you have to manually “spin them up” first (except for warp, it has a button for it). Their seamless experience only works if you planned to use them from the start.
 
 **This script is different:**  
-- **You don’t need to prepare or restart your session - in any PowerShell window, anywhere where you can load your profile, you can use your past context AFTER you realized you need it.**
-- **Just press a single key and starts supplying context to AI backend tool - it's script's single purpose.**  
+- **You don’t need to prepare or restart your session - in any PowerShell window where you can load your profile, you can use your past context AFTER you realized you need it.**
+- **Just press a single key and it starts supplying transcript context to AI backend tool - it's the script's single purpose.**  
 - **No need for large agent system prompts, thus super cheap**  
 - **No need to feed unneeded interactions to inference - only after you realized you need them, on a portion you need them**
 - **Starts at the speed of inference, super fast.**
 - **Price is your API token usage. (Hello warp)**
 - **FOSS**
 - **Windows terminal experience if you like it**
+- **BETA: This transcript version offers improved history capture over the original screen buffer version**
 
 In short: **You get immediate, context-aware AI assistance, right when you need it—even if you decide to use it in the middle of your work. No setup, no waiting, no planning ahead.**
 
@@ -38,13 +39,13 @@ In short: **You get immediate, context-aware AI assistance, right when you need 
 ![Demo GIF](Promo/Gif_Demo.gif)
 
 
--   **Console Buffer to AI Prompt:** The main feature is capturing text from your PowerShell console buffer (the last N lines, you specify, 180 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output. You are unfortunately limited to what you see on screen. To capture more, you need to: in settings of your PowerShell profile, disable "Scroll to input when typing" and make window as big as possible and use Ctrl + Mousewheel to change scaling, the more you see, the more will be captured.
+-   **PowerShell Transcript to AI Prompt:** The main feature is capturing text from your PowerShell session transcript (the last N lines, you specify, 200 by default) and sending it directly to the AI as part of the prompt. This provides context from your recent commands and their output. Unlike the screen buffer version, this transcript-based approach captures your console history even when it's scrolled out of view, giving you more comprehensive context for AI assistance.
 -   **Alt+C Hotkey:** Quick access to AI command suggestion with a simple keyboard shortcut. (What you typed as prompt will be REPLACED with ready to press enter command)
 -   **Alt+S Hotkey:** Instantly start a conversational AI session with your console history and current query.
 -   **Context Control:** Specify how many lines of console history (1-1999) to include in the AI prompt. Simply type a number before prompt and let it go! like "50 explain the last few commands and suggest an optimization" - number will be automatically picked up and parsed into console history line count.
 -   **Session Logging:** Save your recent console lines to a text file for reference.
 
-When you press Alt+C, the script analyzes your current input line, captures the specified number of console history lines, and sends everything to `aichat`. The AI response then replaces your current input line in the console.
+When you press Alt+C, the script analyzes your current input line, captures the specified number of transcript history lines, and sends everything to `aichat`. The AI response then replaces your current input line in the console.
 Aichat is free and open source application.
 
 ## 📋 Prerequisites
@@ -122,8 +123,8 @@ Test `aichat` from your terminal after configuration:
         
 This will make sure the base application for this script is working.
 
-2.  **Install `Console2Ai.ps1`**
-    1.  Download `Console2Ai.ps1` from this repository and place it in a convenient folder (e.g., `C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai.ps1` or `C:\Scripts\Console2Ai.ps1`).
+2.  **Install `Console2Ai-transcript.ps1`**
+    1.  Download `Console2Ai-transcript.ps1` from this repository and place it in a convenient folder (e.g., `C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai-transcript.ps1` or `C:\Scripts\Console2Ai-transcript.ps1`).
 
     2.  Open your PowerShell profile for editing:
         ```powershell
@@ -133,12 +134,12 @@ This will make sure the base application for this script is working.
     3.  Copy and paste the following snippet into your profile (adjust the path as needed):
         ```powershell
         # Import-Module PSReadLine  # Uncomment if needed
-        . C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai.ps1  # Adjust path if needed
+        . C:\Users\YourUser\Documents\PowerShell\Scripts\Console2Ai-transcript.ps1  # Adjust path if needed
         ```
 
     4.  Save the profile and **restart PowerShell**.
 
-## 🚀 How to Use Console2Ai
+## 🚀 How to Use Console2Ai-transcript (BETA)
 
 Once installed, you have a few ways to interact with Console2Ai:
 
@@ -163,16 +164,16 @@ Once installed, you have a few ways to interact with Console2Ai:
              ... lots of previous output ...
             PS C:\> 50 explain the last few commands and suggest an optimization # Press Alt+S
             
-    Console2Ai will capture the last 50 lines of history along with your query.
+    Console2Ai-transcript will capture the last 50 lines of transcript history along with your query.
     If you only type a number (e.g., `30`) and press `Alt+C`, it will use that many lines of history and a generic prompt for the AI.
 
 2.  **The `Alt+S` Hotkey (Conversational Chat)** 💬
-    Start a conversational AI session with your console history as context and your current query. Unlike Alt+C, Alt+S is focused on back-and-forth conversation, not just command suggestions.
+    Start a conversational AI session with your transcript history as context and your current query. Unlike Alt+C, Alt+S is focused on back-and-forth conversation, not just command suggestions.
 
     -   **How it works:**
         -   Type your question or message into the PowerShell prompt.
         -   Press `Alt+S`.
-        -   Console2Ai will capture the last 180 lines of console history (by default) plus your typed query, then open a conversational AI session using `aichat`.
+        -   Console2Ai-transcript will capture the last 200 lines of transcript history (by default) plus your typed query, then open a conversational AI session using `aichat`.
         -   The AI will reply conversationally, focusing on explanations, troubleshooting, or general answers (not just commands).
     -   **Example Usage:**
         -   To ask why your script is running slowly, type your query and press `Alt+S`:
@@ -186,13 +187,13 @@ Once installed, you have a few ways to interact with Console2Ai:
     -   Under the hood, Alt+S calls the `Invoke-Console2AiConversation` function. And Alt+C calls `Invoke-AIConsoleHelp` function.
 
 3.  **Using the PowerShell Functions** ⚙️
-    Console2Ai also provides standard PowerShell functions if you prefer:
+    Console2Ai-transcript also provides standard PowerShell functions if you prefer:
 
     a.  **`Invoke-AIConsoleHelp`**
         Manually trigger AI assistance.
 
         
-        # Get help based on the last 180 lines of console history
+        # Get help based on the last 200 lines of transcript history
         Invoke-AIConsoleHelp
 
         # Get help with more context and a specific prompt
@@ -208,7 +209,7 @@ Once installed, you have a few ways to interact with Console2Ai:
     c.  **`Save-ConsoleHistoryLog`** 💾
         Save recent console output to a file.
         
-        # Save the last 180 lines to .\log.txt (if your window is big enough)
+        # Save the last 100 lines (default) to .\Console2Ai_ManualLog.txt
         Save-ConsoleHistoryLog
 
         # Save the last 30 lines to a custom file
@@ -225,20 +226,23 @@ Once installed, you have a few ways to interact with Console2Ai:
 
 ## 🔧 Customization (Optional)
 
-You can modify `Console2Ai.ps1` directly to change:
+You can modify `Console2Ai-transcript.ps1` directly to change:
 
 -   **`$Global:Console2Ai_AIChatExecutable`**: If `aichat.exe` is named differently or you want to use a full path.
 -   **`$Global:Console2Ai_CommandMode_AIPromptInstruction`**: The default instruction template sent to the AI for Alt+C (command suggestion).
 -   **`$Global:Console2Ai_ConversationMode_AIPromptInstruction`**: The default instruction template sent to the AI for Alt+S (conversational chat).
--   **`$Global:Console2Ai_MaxLinesForHotkeyParse`**: The maximum number of console history lines you can specify for Alt+C/Alt+S hotkeys (default: 1999). Change this if you want to allow more or fewer lines to be parsed from the prompt.
+-   **`$Global:Console2Ai_DefaultLinesFromTranscriptForHotkey`**: The default number of transcript lines to capture for Alt+C/Alt+S hotkeys if not specified (default: 200).
+-   **`$Global:Console2Ai_TranscriptBaseDir`**: Directory where transcripts are stored.
+-   **`$Global:Console2Ai_TranscriptMaxAgeDays`**: Maximum age of transcript files in days before cleanup (default: 2).
 
 ## Troubleshooting
 
 ### Alt+C doesn't work
 
 -   Ensure PSReadLine module is loaded. (It usually is by default in modern PowerShell).
--   Check your PowerShell profile (`$PROFILE`) to ensure `Console2Ai.ps1` is being dot-sourced correctly and after PSReadLine might be imported.
+-   Check your PowerShell profile (`$PROFILE`) to ensure `Console2Ai-transcript.ps1` is being dot-sourced correctly and after PSReadLine might be imported.
 -   Ensure no other Alt+C binding is overriding it.
+-   Verify that transcription is working properly by checking the transcript directory.
 
 ### AI Errors (❌ Console2Ai AI Error...)
 
@@ -246,9 +250,11 @@ You can modify `Console2Ai.ps1` directly to change:
 -   Check your `aichat` configuration (`%APPDATA%\aichat\config.yaml`). Is the model correct? Is your API key valid and correctly configured (e.g., `OPENAI_API_KEY` environment variable)?
 -   Check your internet connection.
 
-### "No console history was captured"
+### "No history captured" or transcript error
 
--   This can happen if the console buffer is empty or very short (e.g., right after `Clear-Host` or `cls`). The functions will still try to work with any typed user prompt.
+-   Check the transcript directory (`$Global:Console2Ai_TranscriptBaseDir`) to ensure transcripts are being created.
+-   This can happen if the transcript file is not accessible or if the transcript functionality hasn't been properly initialized.
+-   Make sure the transcript directory exists and is writable.
 
 ## License
 
