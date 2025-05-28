@@ -110,7 +110,7 @@ function Invoke-AIConsoleHelp {
     $currentLine = $null; $currentCursor = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$currentLine, [ref]$currentCursor)
     [Microsoft.PowerShell.PSConsoleReadLine]::DeleteLine()
-    [Microsoft.PowerShell.PSConsoleReadLine]::Insert("Invoke-AIConsoleHelp: Sending to AI ($AIChatExecutable) for command suggestion...")
+    [Microsoft.PowerShell.PSConsoleReadLine]::Insert("Invoke-AIConsoleHelp: Sending $LinesToCapture rows to AI ($AIChatExecutable) for command suggestion...")
     # Ensure UTF-8 output in this session
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     try { 
