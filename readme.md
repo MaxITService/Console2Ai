@@ -32,7 +32,7 @@ Quick recap: you will need this script loaded in powershell, and backend app "ai
 
 ## 🛠️ Installation & Configuration
 
-Follow these steps to get Console2Ai-transcript up and running:
+Follow these steps to get Console2Ai up and running, (I've tried to make most detailed manual for every step, actual process does not take long):
 
 1.  **Install and Configure `aichat`**
     a.  **Download `aichat`:**
@@ -42,7 +42,7 @@ Follow these steps to get Console2Ai-transcript up and running:
         For Console2Ai-transcript to find `aichat.exe`, it needs to be in your system's PATH.
         -   Create a dedicated folder for CLI tools, e.g., `C:\Tools\bin`
         -   Rename the downloaded `aichat` executable to `aichat.exe` and move it to this folder.
-        -   Add this folder to your PATH. You can do this via PowerShell:
+        -   Add this folder to your PATH. You can do this via Windows GUI or via PowerShell:
 
 **For User PATH :**
 
@@ -75,11 +75,11 @@ if (-not ($SystemPath -split ';' -contains $AichatPath)) {
 
 **c. Configure `aichat` Model & API Key:**
         `aichat` needs to know which AI model to use and requires an API key for that service (e.g., OpenAI, OpenRouter, Ollama, Gemini, etc.).
-        Follow the detailed configuration instructions on the [aichat configuration example](https://github.com/sigoden/aichat/blob/main/config.example.yaml).
-        Create or edit a `config.yaml` file. For Windows, this file is located at: `C:\Users\Username\AppData\Roaming\aichat\config.yaml` (replace `Username` with your Windows username).
+        Configuration instructions are here [aichat configuration example](https://github.com/sigoden/aichat/blob/main/config.example.yaml). But to quickly get you started you may need only these steps:
+        Create or edit a `config.yaml` file. For Windows, this file should be put in youur user profile at: `C:\Users\Username\AppData\Roaming\aichat\config.yaml` (replace `Username` with your Windows username).
         You can quickly open this folder by typing `explorer %APPDATA%\aichat` in PowerShell.
         You don't need to have everything, here is my config that works:
-        Example configuration for OpenRouter with Claude:
+        Example configuration file for OpenRouter with Claude:
         
         model: openrouter:anthropic/claude-3.7-sonnet
         clients:
@@ -115,7 +115,7 @@ This will make sure the base application for this script is working.
 Once installed, you have a few ways to interact with Console2Ai-transcript:
 
 1.  **The `Alt+C` Hotkey (Command Suggestion)** 🔥
-    This will replace your command with AI's suggestion after a while
+    This will replace your current text that you have typed in the console with AI's suggestion after a while. (Your text will be deleted and a command that resembles your text will appear instead)
 
     a.  **Standard Query:**
         Type your question, command fragment, or error message into the PowerShell prompt.
@@ -139,7 +139,7 @@ Once installed, you have a few ways to interact with Console2Ai-transcript:
     If you only type a number (e.g., `30`) and press `Alt+C`, it will use that many lines of history and a generic prompt for the AI.
 
 2.  **The `Alt+S` Hotkey (Conversational Chat)** 💬
-    Start a conversational AI session with your transcript history as context and your current query. Unlike Alt+C, Alt+S is focused on back-and-forth conversation, not just command suggestions.
+    Start a conversational AI session with your transcript history as context and your current query. Unlike Alt+C, Alt+S is focused on back-and-forth conversation, not just command suggestions. Your text is not deleted.
 
     -   **How it works:**
         -   Type your question or message into the PowerShell prompt.
